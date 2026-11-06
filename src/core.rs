@@ -413,6 +413,7 @@ impl<F: Fn(UiEvent)> Core<F> {
             tmdb_id: m.tmdb_id,
             season: m.episode.as_ref().map(|e| e.number.season),
             episode: m.episode.as_ref().map(|e| e.number.episode),
+            tmdb_numbers: m.episode.as_ref().and_then(|e| e.tmdb),
             language: self.cfg.language.clone(),
             app_name: self.discord_app_name.clone().unwrap_or_else(|| "Marquee".into()),
             details: activity["details"].as_str().unwrap_or("").to_string(),

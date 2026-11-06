@@ -125,7 +125,15 @@ fn contains_words(long: &str, short: &str) -> bool {
     short.split(' ').count() >= 2 && format!(" {long} ").contains(&format!(" {short} "))
 }
 
-pub fn score(query: &str, year: Option<u16>, country: Option<&str>, c: &Candidate) -> (f64, f64) {
+/// `not_after`: the candidate can't have started after this year
+/// (a show with an episode in 1940 didn't premiere in 2023).
+pub fn score(
+    query: &str,
+    year: Option<u16>,
+    country: Option<&str>,
+    not_after: Option<u16>,
+    c: &Candidate,
+) -> (f64, f64) {
     let q = normalize(query);
     let year_exact = matches!((year, c.year), (Some(a), Some(b)) if a == b);
     let mut sim: f64 = 0.0;
@@ -152,16 +160,31 @@ pub fn score(query: &str, year: Option<u16>, country: Option<&str>, c: &Candidat
         Some(_) if !c.origin_country.is_empty() => -0.05,
         _ => 0.0,
     };
-    (sim, sim + year_adj + pop + country_adj)
+    let cap_adj = match (not_after, c.year) {
+        (Some(cap), Some(cy)) if cy > cap => -0.6,
+        _ => 0.0,
+    };
+    (sim, sim + year_adj + pop + country_adj + cap_adj)
 }
 
 /// Pick the best acceptable candidate, or `None` if nothing is a confident match.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn best(query: &str, year: Option<u16>, country: Option<&str>, cands: &[Candidate]) -> Option<Scored> {
+    best_capped(query, year, country, None, cands)
+}
+
+pub fn best_capped(
+    query: &str,
+    year: Option<u16>,
+    country: Option<&str>,
+    not_after: Option<u16>,
+    cands: &[Candidate],
+) -> Option<Scored> {
     let mut scored: Vec<Scored> = cands
         .iter()
         .enumerate()
         .map(|(index, c)| {
-            let (similarity, total) = score(query, year, country, c);
+            let (similarity, total) = score(query, year, country, not_after, c);
             Scored { index, similarity, total }
         })
         .collect();
@@ -257,6 +280,14 @@ mod tests {
         let cands = vec![uk, us];
         assert_eq!(cands[best("The Office", None, None, &cands).unwrap().index].id, 1);
         assert_eq!(cands[best("The Office", None, Some("UK"), &cands).unwrap().index].id, 2);
+    }
+
+    #[test]
+    fn premiere_cap_breaks_same_name_ties() {
+        let cands = vec![cand(1, "Tom and Jerry", 2023, 7), cand(2, "Tom and Jerry", 1940, 1)];
+        // Without context the more-voted (2023) wins; an episode from 1940 rules it out.
+        assert_eq!(cands[best("Tom and Jerry", None, None, &cands).unwrap().index].id, 1);
+        assert_eq!(cands[best_capped("Tom and Jerry", None, None, Some(1940), &cands).unwrap().index].id, 2);
     }
 
     #[test]

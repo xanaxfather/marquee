@@ -135,6 +135,7 @@ Marquee builds a ranked list of guesses from the file name and then the folder n
 - **Year** is a strong check: off by one is fine, anything further is rejected.
 - **Origin country** helps with names like `The Office US`.
 - **Popularity** only breaks ties.
+- **Episode titles** in the file name confirm the episode, and find it when the numbering differs from TMDB's (year-numbered seasons, specials, re-cut seasons).
 
 | File | Result |
 |---|---|
@@ -144,6 +145,7 @@ Marquee builds a ranked list of guesses from the file name and then the folder n
 | `Under.the.Skin.2013.1080p.BluRay-GRP/grp-uts.mkv` | **Under the Skin** (2013), using the release folder |
 | `The.Office.US.S05E14.mkv` | **The Office** (US), not the UK original |
 | `Friends.S01E16E17.mkv` | **Friends**, S1 - E16–17 |
+| `Tom and Jerry - S1940E01 - Puss Gets The Boot.mkv` | **Tom and Jerry** (1940), 1940 - E1. Year-numbered seasons are mapped to TMDB's numbering, and shows that premiered later are ruled out |
 | `Wonder.Woman.1984.1080p.mkv` | **Wonder Woman 1984**, not *Wonder Woman* |
 | `Dune (2021).mkv` | **Dune** (2021); the 1984 film is rejected on the year |
 

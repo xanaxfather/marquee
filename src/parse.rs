@@ -30,7 +30,18 @@ pub struct EpisodeNo {
 }
 
 impl EpisodeNo {
+    /// Year-numbered seasons (`S1940E01`, used for long-running shorts).
+    pub fn is_year_season(&self) -> bool {
+        (1900..=2100).contains(&self.season)
+    }
+
     pub fn label(&self) -> String {
+        if self.is_year_season() {
+            return match self.last {
+                Some(l) => format!("{} - E{}–{}", self.season, self.episode, l),
+                None => format!("{} - E{}", self.season, self.episode),
+            };
+        }
         match self.last {
             Some(l) => format!("S{} - E{}–{}", self.season, self.episode, l),
             None => format!("S{} - E{}", self.season, self.episode),
@@ -78,7 +89,7 @@ fn re(s: &str) -> Regex {
 }
 
 static RE_SXXEXX: LazyLock<Regex> =
-    LazyLock::new(|| re(r"(?i)\bS(\d{1,2}) ?[-]? ?E(\d{1,3})(?: ?(?:- ?E?|E)(\d{1,3})\b)?"));
+    LazyLock::new(|| re(r"(?i)\bS(\d{1,2}|(?:19|20)\d{2}) ?[-]? ?E(\d{1,3})(?: ?(?:- ?E?|E)(\d{1,3})\b)?"));
 static RE_SEASON_EPISODE: LazyLock<Regex> =
     LazyLock::new(|| re(r"(?i)\bSeason ?(\d{1,2})[ ,-]*(?:Episode|Ep) ?(\d{1,3})\b"));
 static RE_NXNN: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)\b(\d{1,2})x(\d{2,3})(?:-(\d{2,3}))?\b"));
@@ -517,6 +528,16 @@ mod tests {
         assert_eq!((g.title.as_str(), g.year), ("Doctor Who", Some(2005)));
         let g = parse_name("[SubsPlease] Frieren S01E05 (1080p) [ABCD1234].mkv");
         assert_eq!((g.title.as_str(), g.episode), ("Frieren", ep(1, 5)));
+    }
+
+    #[test]
+    fn year_seasons() {
+        let g = parse_name("Tom and Jerry - S1940E01 - Puss Gets The Boot.mkv");
+        assert_eq!(g.title, "Tom and Jerry");
+        assert_eq!(g.episode, ep(1940, 1));
+        assert_eq!(g.episode_title.as_deref(), Some("Puss Gets The Boot"));
+        assert_eq!(g.episode.unwrap().label(), "1940 - E1");
+        assert!(g.year.is_none());
     }
 
     #[test]

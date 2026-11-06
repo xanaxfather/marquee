@@ -23,6 +23,8 @@ pub struct Target {
     pub tmdb_id: u64,
     pub season: Option<u32>,
     pub episode: Option<u32>,
+    /// TMDB's (season, episode) when the file uses different numbering.
+    pub tmdb_numbers: Option<(u32, u32)>,
     pub language: String,
     /// Preview text, as Discord shows it.
     pub app_name: String,
@@ -180,6 +182,7 @@ mod tests {
             imdb_id: None,
             episode: Some(EpisodeInfo {
                 number: EpisodeNo { season: 1, episode: 2, last: None },
+                tmdb: None,
                 name: None,
                 air_date: None,
                 still: Some("still".into()),

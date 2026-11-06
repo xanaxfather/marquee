@@ -197,6 +197,7 @@ fn artwork_target(cfg: &Config, path: &str) -> (metadata::Resolver, artwork::Tar
         tmdb_id: m.tmdb_id,
         season: m.episode.as_ref().map(|e| e.number.season),
         episode: m.episode.as_ref().map(|e| e.number.episode),
+        tmdb_numbers: m.episode.as_ref().and_then(|e| e.tmdb),
         language: cfg.language.clone(),
         app_name: "Marquee".into(),
         details: m.title.clone(),

@@ -256,6 +256,7 @@ mod tests {
                 imdb_id: Some("tt0903747".into()),
                 episode: Some(EpisodeInfo {
                     number: EpisodeNo { season: 2, episode: 3, last: None },
+                    tmdb: None,
                     name: Some("Bit by a Fly".into()),
                     air_date: Some("2009-03-22".into()),
                     still: None,

@@ -12,7 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const POSITIVE_TTL: u64 = 30 * 24 * 3600;
 const NEGATIVE_TTL: u64 = 12 * 3600;
 const MAX_ENTRIES: usize = 5000;
-const VERSION: u32 = 2;
+const VERSION: u32 = 3;
 
 #[derive(Serialize, Deserialize)]
 struct Entry {
