@@ -1,0 +1,392 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Choose Artwork — Marquee</title>
+<style>
+:root {
+  --bg: #0d0e12;
+  --panel: #14161b;
+  --raise: #1b1e25;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #eceef2;
+  --muted: #a2a6b0;
+  --dim: #6d717c;
+  --accent: #5865f2;
+  --accent-hi: #6d78f6;
+  --green: #23a55a;
+  --card: #1e1f23;
+  --radius: 12px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default;
+}
+button, input { font: inherit; color: inherit; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 356px; grid-template-rows: minmax(0, 1fr); height: 100vh; }
+
+/* ---------- left: library ---------- */
+main { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+main::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 240px; pointer-events: none;
+  background: radial-gradient(120% 100% at 15% 0%, rgba(88, 101, 242, 0.14), transparent 60%);
+}
+header { position: relative; padding: 46px 28px 16px 28px; }
+.title { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.subtitle { color: var(--muted); margin-top: 3px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabs {
+  display: inline-flex; gap: 2px; margin-top: 18px; padding: 3px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); border-radius: 10px;
+}
+.tab {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: 7px;
+  color: var(--muted); font-weight: 550; display: inline-flex; align-items: center; gap: 7px;
+  transition: background .15s, color .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.on { background: var(--raise); color: var(--text); box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 2px 8px rgba(0,0,0,.35); }
+.tab .n { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.scroller { flex: 1; overflow-y: auto; padding: 6px 28px 28px; scroll-behavior: smooth; }
+.scroller::-webkit-scrollbar { width: 10px; }
+.scroller::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; border: 3px solid var(--bg); }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(var(--min, 220px), 1fr)); }
+.tile {
+  position: relative; border-radius: 10px; overflow: hidden; background: var(--raise);
+  aspect-ratio: var(--aspect, 16/9); cursor: pointer; outline: none;
+  transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .35s; }
+.tile img.ok { opacity: 1; }
+.tile:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--line-strong), 0 10px 26px rgba(0,0,0,.45); }
+.tile:focus-visible { box-shadow: 0 0 0 2px var(--accent-hi); }
+.tile.sel { box-shadow: 0 0 0 2px var(--accent), 0 10px 30px rgba(88,101,242,.28); }
+.tile .check {
+  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); display: grid; place-items: center;
+  transform: scale(.4); opacity: 0; transition: transform .2s cubic-bezier(.3,1.6,.5,1), opacity .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.tile.sel .check { transform: scale(1); opacity: 1; }
+.chip {
+  position: absolute; left: 8px; bottom: 8px; padding: 2px 7px; border-radius: 6px;
+  background: rgba(10, 11, 14, .72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  font-size: 11px; color: var(--text); font-weight: 550;
+}
+.chip.use { left: auto; right: 8px; background: rgba(35,165,90,.9); }
+.tile.sel .chip.use { right: 36px; }
+.skel { background: linear-gradient(100deg, var(--raise) 30%, #23262e 50%, var(--raise) 70%); background-size: 300% 100%; animation: sh 1.4s ease-in-out infinite; }
+@keyframes sh { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.empty { color: var(--muted); text-align: center; padding: 80px 20px; }
+.empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+
+/* ---------- right: preview + actions ---------- */
+aside {
+  background: var(--panel); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; padding: 46px 22px 22px; gap: 22px; min-height: 0;
+}
+.label { color: var(--muted); font-size: 12px; font-weight: 550; margin-bottom: 9px; display: flex; justify-content: space-between; align-items: baseline; }
+.label a { color: var(--dim); text-decoration: none; font-weight: 500; }
+.label a:hover { color: var(--text); }
+.dcard { background: var(--card); border-radius: var(--radius); padding: 14px 14px 15px; box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 12px 32px rgba(0,0,0,.35); }
+.dcard .head { font-weight: 700; font-size: 13.5px; margin-bottom: 11px; display: flex; justify-content: space-between; }
+.dcard .head span { color: var(--dim); letter-spacing: 1px; }
+.dcard .row { display: flex; gap: 13px; align-items: center; }
+.dimg { width: 80px; height: 80px; border-radius: 9px; flex: none; overflow: hidden; background: #2b2d31; position: relative; }
+.dimg img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .25s; }
+.dimg img.fade { opacity: 0; }
+.dtext { min-width: 0; }
+.dtext .d { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dtext .s { color: #b5bac1; font-size: 13px; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dtext .t { color: var(--green); font: 600 13px/1 ui-monospace, "SF Mono", Menlo, monospace; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+.hint { color: var(--dim); font-size: 11.5px; margin-top: 9px; }
+
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; gap: 2px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; }
+.seg button { border: 0; background: transparent; padding: 7px 6px; border-radius: 7px; color: var(--muted); font-weight: 550; position: relative; transition: background .15s, color .15s; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--raise); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.seg button .dot { position: absolute; top: 5px; right: 6px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent-hi); }
+
+.url { display: flex; gap: 6px; }
+.url input {
+  flex: 1; min-width: 0; background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; outline: none; transition: border-color .15s, box-shadow .15s; user-select: text; -webkit-user-select: text;
+}
+.url input::placeholder { color: var(--dim); }
+.url input:focus { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
+.url input.bad { border-color: #da373c; }
+.btn { border: 0; border-radius: 9px; padding: 9px 14px; font-weight: 600; transition: background .15s, transform .08s, opacity .15s; }
+.btn:active { transform: scale(.98); }
+.btn.small { padding: 8px 12px; background: var(--raise); box-shadow: 0 0 0 1px var(--line) inset; }
+.btn.small:hover { background: #23262e; }
+.btn.primary { background: var(--accent); color: white; width: 100%; padding: 11px; font-size: 13.5px; }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.primary:disabled { opacity: .45; }
+.btn.ghost { background: transparent; color: var(--muted); width: 100%; }
+.btn.ghost:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.spacer { flex: 1; }
+.actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* Windows: a normal title bar sits above the page, so no traffic-light inset. */
+.windows header { padding-top: 22px; }
+.windows aside { padding-top: 22px; }
+.windows .title { font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-weight: 600; }
+.windows .btn, .windows .tab, .windows .seg button { border-radius: 6px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0;
+  background: #f2f3f5; color: #111; padding: 9px 14px 9px 12px; border-radius: 999px; font-weight: 600;
+  display: flex; gap: 8px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  transition: opacity .2s, transform .25s cubic-bezier(.2,.8,.3,1); pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <main>
+    <header id="drag">
+      <h1 class="title" id="title"></h1>
+      <div class="subtitle" id="subtitle"></div>
+      <div class="tabs" id="tabs"></div>
+    </header>
+    <div class="scroller" id="scroller"><div class="grid" id="grid"></div></div>
+  </main>
+
+  <aside id="aside">
+    <div>
+      <div class="label"><span>Discord preview</span><a href="#" id="tmdb">TMDB ↗</a></div>
+      <div class="dcard">
+        <div class="head"><span style="letter-spacing:0;color:var(--text)" id="app"></span><span>•••</span></div>
+        <div class="row">
+          <div class="dimg"><img id="pimg" alt=""></div>
+          <div class="dtext">
+            <div class="d" id="pd"></div>
+            <div class="s" id="ps"></div>
+            <div class="t" id="pt">
+              <svg width="15" height="12" viewBox="0 0 15 12" fill="currentColor"><rect x="0" y="0" width="15" height="9.5" rx="2"/><rect x="4" y="10.5" width="7" height="1.5" rx=".75"/></svg>
+              <span id="ptime"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hint">Discord crops artwork to a square.</div>
+    </div>
+
+    <div id="scopeBox">
+      <div class="label"><span>Use this artwork for</span></div>
+      <div class="seg" id="scope"></div>
+    </div>
+
+    <div>
+      <div class="label"><span>Or use your own image</span></div>
+      <div class="url">
+        <input id="url" placeholder="https://…" spellcheck="false" autocomplete="off">
+        <button class="btn small" id="useUrl">Preview</button>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="actions">
+      <button class="btn primary" id="apply" disabled>Apply</button>
+      <button class="btn ghost" id="reset">Reset to default</button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#23a55a"/><path d="M4.5 8.3l2.2 2.2 4.8-4.8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastText"></span></div>
+
+<script>
+const CTX = /*__CTX__*/null;
+document.documentElement.classList.add(CTX.platform || "macos");
+const $ = id => document.getElementById(id);
+const post = m => window.ipc.postMessage(JSON.stringify(m));
+const isEpisode = CTX.kind === "Episode" && CTX.season != null && CTX.episode != null;
+
+let groups = null, tab = 0, selected = null;
+let applied = Object.assign({}, CTX.overrides);   // scope -> url
+let scope = isEpisode ? "episode" : "show";
+let inUse = CTX.current;
+
+// ---- header & preview text
+$("title").textContent = CTX.details;
+$("subtitle").textContent = CTX.state;
+$("app").textContent = "Watching " + CTX.app_name;
+$("pd").textContent = CTX.details;
+$("ps").textContent = (CTX.paused ? "Paused · " : "") + CTX.state;
+$("tmdb").onclick = e => { e.preventDefault(); post({ type: "open", url: CTX.tmdb_url }); };
+
+function setPreview(url) {
+  const img = $("pimg");
+  if (!url) { img.removeAttribute("src"); return; }
+  if (img.getAttribute("src") === url) return;
+  img.classList.add("fade");
+  const pre = new Image();
+  pre.onload = () => { img.src = url; img.classList.remove("fade"); };
+  pre.onerror = () => img.classList.remove("fade");
+  pre.src = url;
+}
+setPreview(CTX.current || CTX.default);
+
+// ---- elapsed timer (Discord shows elapsed time)
+let pos = CTX.position || 0;
+const fmt = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+$("ptime").textContent = fmt(pos);
+if (!CTX.paused && CTX.position != null) setInterval(() => { pos += 1; $("ptime").textContent = fmt(pos); }, 1000);
+if (CTX.position == null) $("pt").style.display = "none";
+
+// ---- scope selector
+const scopes = isEpisode
+  ? [["episode", "This episode"], ["season", "Season " + CTX.season], ["show", "Whole show"]]
+  : [["show", CTX.kind === "Movie" ? "This movie" : "This show"]];
+function renderScope() {
+  $("scope").innerHTML = "";
+  for (const [id, label] of scopes) {
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.className = id === scope ? "on" : "";
+    if (applied[id]) { const d = document.createElement("span"); d.className = "dot"; d.title = "Custom artwork set"; b.appendChild(d); }
+    b.onclick = () => { scope = id; renderScope(); updateButtons(); };
+    $("scope").appendChild(b);
+  }
+}
+if (scopes.length === 1) $("scopeBox").style.display = "none";
+renderScope();
+
+// ---- tabs & grid
+function renderTabs() {
+  $("tabs").innerHTML = "";
+  (groups || []).forEach((g, i) => {
+    const b = document.createElement("button");
+    b.className = "tab" + (i === tab ? " on" : "");
+    b.innerHTML = `<span></span><span class="n">${g.items.length}</span>`;
+    b.firstChild.textContent = g.label;
+    b.onclick = () => { tab = i; renderTabs(); renderGrid(); $("scroller").scrollTop = 0; };
+    $("tabs").appendChild(b);
+  });
+  if (!groups) {
+    for (const w of [80, 70, 95, 84]) { const s = document.createElement("span"); s.className = "tab skel"; s.style.cssText = `width:${w}px;height:28px;display:inline-block`; $("tabs").appendChild(s); }
+  }
+}
+
+function renderGrid() {
+  const grid = $("grid");
+  grid.innerHTML = "";
+  if (!groups) {
+    grid.style.setProperty("--min", "220px"); grid.style.setProperty("--aspect", "16/9");
+    for (let i = 0; i < 12; i++) { const t = document.createElement("div"); t.className = "tile skel"; grid.appendChild(t); }
+    return;
+  }
+  const g = groups[tab];
+  if (!g) { grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><b>No artwork on TMDB yet</b>Paste an image URL on the right instead.</div>`; return; }
+  const poster = g.aspect === "2/3";
+  grid.style.setProperty("--min", poster ? "150px" : "220px");
+  grid.style.setProperty("--aspect", g.aspect);
+  g.items.forEach((it, i) => {
+    const t = document.createElement("div");
+    t.className = "tile" + (it.full === selected ? " sel" : "");
+    t.tabIndex = 0;
+    t.dataset.full = it.full;
+    const img = document.createElement("img");
+    img.loading = "lazy"; img.decoding = "async"; img.alt = "";
+    img.onload = () => img.classList.add("ok");
+    img.src = it.thumb;
+    t.appendChild(img);
+    if (it.lang) { const c = document.createElement("span"); c.className = "chip"; c.textContent = it.lang.toUpperCase(); t.appendChild(c); }
+    if (it.full === inUse) { const c = document.createElement("span"); c.className = "chip use"; c.textContent = "In use"; t.appendChild(c); }
+    const check = document.createElement("span"); check.className = "check";
+    check.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-4.7" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    t.appendChild(check);
+    t.onclick = () => select(it.full);
+    t.ondblclick = () => { select(it.full); apply(); };
+    t.onkeydown = e => { if (e.key === " ") { e.preventDefault(); select(it.full); } };
+    grid.appendChild(t);
+  });
+}
+
+function select(url) {
+  selected = url;
+  document.querySelectorAll(".tile").forEach(t => t.classList.toggle("sel", t.dataset.full === url));
+  $("url").classList.remove("bad");
+  setPreview(url);
+  updateButtons();
+}
+
+function updateButtons() {
+  $("apply").disabled = !selected || applied[scope] === selected;
+  $("reset").disabled = !applied[scope];
+  $("reset").style.opacity = applied[scope] ? 1 : .4;
+}
+
+function toast(text) {
+  $("toastText").textContent = text;
+  $("toast").classList.add("show");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => $("toast").classList.remove("show"), 2200);
+}
+
+function apply() {
+  if (!selected) return;
+  post({ type: "apply", scope, url: selected });
+  applied[scope] = selected; inUse = selected;
+  renderScope(); renderGrid(); updateButtons();
+  toast("Updated on Discord");
+}
+
+$("apply").onclick = apply;
+$("reset").onclick = () => {
+  if (!applied[scope]) return;
+  post({ type: "reset", scope });
+  delete applied[scope];
+  const next = applied.episode || applied.season || applied.show || CTX.default;
+  inUse = next; selected = null;
+  setPreview(next); renderScope(); renderGrid(); updateButtons();
+  toast("Back to default artwork");
+};
+$("useUrl").onclick = () => {
+  const v = $("url").value.trim();
+  if (!/^https:\/\/\S+$/i.test(v)) { $("url").classList.add("bad"); return; }
+  select(v);
+};
+$("url").onkeydown = e => { if (e.key === "Enter") $("useUrl").click(); };
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") post({ type: "close" });
+  if (e.key === "Enter" && document.activeElement !== $("url")) apply();
+});
+// Drag the window by its empty top areas (macOS: there is no visible title bar).
+for (const el of CTX.platform === "windows" ? [] : [$("drag"), $("aside")]) {
+  el.addEventListener("mousedown", e => {
+    if (e.button !== 0 || e.target.closest("button, a, input, .dcard, .tabs")) return;
+    if (e.target === el || e.target.classList.contains("title") || e.target.classList.contains("subtitle")) post({ type: "drag" });
+  });
+}
+
+// ---- data from the app
+window.__options = data => {
+  groups = data.groups.filter(g => g.items.length);
+  if (!groups.length) groups = [];
+  // Open on the tab containing the image in use, else the first.
+  const idx = groups.findIndex(g => g.items.some(it => it.full === inUse));
+  tab = idx >= 0 ? idx : 0;
+  renderTabs(); renderGrid();
+};
+window.__error = msg => {
+  groups = [];
+  renderTabs();
+  $("grid").innerHTML = `<div class="empty" style="grid-column:1/-1"><b>Couldn't load artwork</b></div>`;
+  $("grid").firstChild.appendChild(document.createTextNode(msg));
+};
+
+renderTabs(); renderGrid(); updateButtons();
+post({ type: "ready" });
+</script>
+</body>
+</html>
