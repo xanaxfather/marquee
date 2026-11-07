@@ -59,6 +59,11 @@ pub struct Config {
     pub log_level: String,
 }
 
+/// Marquee's own corner badges (assets/presence/, see scripts/make_presence_icons.py).
+pub const BADGE_PLAYING: &str =
+    "https://raw.githubusercontent.com/xanaxfather/marquee/main/assets/presence/playing.png";
+pub const BADGE_PAUSED: &str = "https://raw.githubusercontent.com/xanaxfather/marquee/main/assets/presence/paused.png";
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -77,8 +82,8 @@ impl Default for Config {
             show_extras: true,
             status_display: StatusDisplay::Details,
             artwork: ArtworkMode::Episode,
-            small_image_playing: String::new(),
-            small_image_paused: String::new(),
+            small_image_playing: BADGE_PLAYING.into(),
+            small_image_paused: BADGE_PAUSED.into(),
             fallback_image: String::new(),
             log_level: "info".into(),
         }
@@ -137,10 +142,11 @@ status_display = "details"
 # "episode"/"season". Pick a specific image per title with "Choose Artwork…".
 artwork = "episode"
 
-# Optional small corner images: an asset key uploaded to your Discord
+# Small corner badge over the artwork: an asset key uploaded to your Discord
 # application (Rich Presence → Art Assets) or an https:// image URL.
-small_image_playing = ""
-small_image_paused = ""
+# Defaults to Marquee's play/pause badges; set to "" for none.
+small_image_playing = "https://raw.githubusercontent.com/xanaxfather/marquee/main/assets/presence/playing.png"
+small_image_paused = "https://raw.githubusercontent.com/xanaxfather/marquee/main/assets/presence/paused.png"
 
 # Large image when no artwork could be found (asset key or URL). Empty = none.
 fallback_image = ""

@@ -165,7 +165,7 @@ The config file is created with comments on first run. **Open Config File…** o
 | `show_buttons` | `true` | "View on TMDB" / "View on IMDb" buttons |
 | `show_extras` | `true` | Genres and rating for movies, air date for episodes |
 | `status_display` | `details` | Member-list text: the title (`details`), the episode line (`state`) or the app name (`name`) |
-| `small_image_playing` / `_paused` | | Optional corner badge (asset key or URL) |
+| `small_image_playing` / `_paused` | Marquee's play/pause badges | Corner badge (asset key or URL, `""` for none) |
 | `fallback_image` | | Image used when nothing is identified |
 | `ipc_socket` | `/tmp/marquee-iina.sock` | IINA's mpv socket |
 | `mpv_ipc` | `/tmp/marquee-mpv.sock` · `\\.\pipe\marquee-mpv` | mpv / mpv.net endpoint |
