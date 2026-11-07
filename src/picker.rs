@@ -39,7 +39,7 @@ impl Picker {
         target: Target,
     ) -> anyhow::Result<Self> {
         let builder = WindowBuilder::new()
-            .with_title("Choose Artwork — Marquee")
+            .with_title(crate::style::text("Choose Artwork — Marquee"))
             .with_inner_size(LogicalSize::new(1060.0, 700.0))
             .with_min_inner_size(LogicalSize::new(820.0, 560.0))
             .with_visible(false);
@@ -65,7 +65,15 @@ impl Picker {
         let mut ctx_json = serde_json::to_value(&target)?;
         ctx_json["platform"] = serde_json::json!(if cfg!(windows) { "windows" } else { "macos" });
         let ctx = ctx_json.to_string().replace("</", "<\\/");
-        let html = include_str!("picker.html").replacen("/*__CTX__*/null", &ctx, 1);
+        let mut html = include_str!("picker.html").replacen("/*__CTX__*/null", &ctx, 1);
+        if crate::style::lowercase() {
+            // Typed URLs keep their case.
+            html = html.replacen(
+                "</head>",
+                "<style>body { text-transform: lowercase; } input { text-transform: none; }</style></head>",
+                1,
+            );
+        }
 
         // WebView2 keeps its profile here (Windows); WebKit ignores it.
         let mut context = Box::new(WebContext::new(Some(crate::paths::webview_dir())));

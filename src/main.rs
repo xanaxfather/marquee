@@ -21,6 +21,7 @@ mod platform;
 mod players;
 mod presence;
 mod setup;
+mod style;
 #[cfg(target_os = "macos")]
 mod symbols;
 mod tmdb;

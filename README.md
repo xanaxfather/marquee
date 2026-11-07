@@ -167,6 +167,7 @@ The config file is created with comments on first run. **Open Config File…** o
 | `status_display` | `details` | Member-list text: the title (`details`), the episode line (`state`) or the app name (`name`) |
 | `small_image_playing` / `_paused` | Marquee's play/pause badges | Corner badge (asset key or URL, `""` for none) |
 | `fallback_image` | | Image used when nothing is identified |
+| `lowercase` | `false` | All-lowercase look for the Discord card, menu and notifications |
 | `ipc_socket` | `/tmp/marquee-iina.sock` | IINA's mpv socket |
 | `mpv_ipc` | `/tmp/marquee-mpv.sock` · `\\.\pipe\marquee-mpv` | mpv / mpv.net endpoint |
 | `vlc_port` / `vlc_password` | `8080` / generated | VLC web interface |

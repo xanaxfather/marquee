@@ -88,13 +88,18 @@ fn media_lines(cfg: &Config, m: &Media) -> Lines {
     }
 }
 
-fn guess_lines(g: &Guess, media_title: Option<&str>) -> Lines {
-    let title = if g.title.is_empty() { media_title.unwrap_or("Something").to_string() } else { g.title.clone() };
+fn guess_lines(g: &Guess, snap: &Snapshot) -> Lines {
+    let title = if g.title.is_empty() {
+        snap.media_title.as_deref().unwrap_or("Something").to_string()
+    } else {
+        g.title.clone()
+    };
     let state = match (&g.episode, &g.episode_title, g.year) {
         (Some(ep), Some(name), _) => format!("{} · {name}", ep.label()),
         (Some(ep), None, _) => ep.label(),
         (None, _, Some(y)) => y.to_string(),
-        (None, _, None) => "IINA".to_string(),
+        (None, _, None) if !snap.player.is_empty() => snap.player.clone(),
+        (None, _, None) => "Video".to_string(),
     };
     Lines { large_text: with_year(&title, g.year), details: title, state, image: None, buttons: vec![] }
 }
@@ -109,14 +114,16 @@ pub fn build(
 ) -> Value {
     let mut lines = match resolution {
         Some(Resolution { media: Some(m), .. }) => media_lines(cfg, m),
-        Some(r) => guess_lines(&r.guess, snap.media_title.as_deref()),
+        Some(r) => guess_lines(&r.guess, snap),
         None => {
             // Resolution in progress (first ~second of a new file).
             let path = snap.path.as_deref().unwrap_or("");
             let g = crate::parse::display_fallback(path);
-            guess_lines(&g, snap.media_title.as_deref())
+            guess_lines(&g, snap)
         }
     };
+    // Lowercase look: every visible string, never URLs or asset keys.
+    let case = |s: String| if cfg.lowercase { s.to_lowercase() } else { s };
 
     if image.is_some() {
         lines.image = image;
@@ -132,21 +139,21 @@ pub fn build(
             StatusDisplay::Details => 2,
         }),
     );
-    a.insert("details".into(), json!(text(&lines.details)));
+    a.insert("details".into(), json!(text(&case(lines.details))));
 
     let paused = snap.paused;
     let state = if paused { format!("Paused · {}", lines.state) } else { lines.state };
-    a.insert("state".into(), json!(text(&state)));
+    a.insert("state".into(), json!(text(&case(state))));
 
     let mut assets = Map::new();
     if let Some(img) = lines.image.or_else(|| (!cfg.fallback_image.is_empty()).then(|| cfg.fallback_image.clone())) {
         assets.insert("large_image".into(), json!(img));
-        assets.insert("large_text".into(), json!(text(&lines.large_text)));
+        assets.insert("large_text".into(), json!(text(&case(lines.large_text))));
     }
     let small = if paused { &cfg.small_image_paused } else { &cfg.small_image_playing };
     if !small.is_empty() {
         assets.insert("small_image".into(), json!(small));
-        assets.insert("small_text".into(), json!(if paused { "Paused" } else { "Playing" }));
+        assets.insert("small_text".into(), json!(case(if paused { "Paused" } else { "Playing" }.to_string())));
     }
     if !assets.is_empty() {
         a.insert("assets".into(), Value::Object(assets));
@@ -176,7 +183,7 @@ pub fn build(
 
     if !lines.buttons.is_empty() {
         let b: Vec<Value> =
-            lines.buttons.into_iter().take(2).map(|(label, url)| json!({"label": label, "url": url})).collect();
+            lines.buttons.into_iter().take(2).map(|(label, url)| json!({"label": case(label), "url": url})).collect();
         a.insert("buttons".into(), Value::Array(b));
     }
     Value::Object(a)
@@ -286,6 +293,21 @@ mod tests {
         assert!(p.get("timestamps").is_none());
         assert!(!same(&a, &p));
         assert!(same(&a, &build(&cfg, &snap(false), Some(&r), None, now)));
+    }
+
+    #[test]
+    fn lowercase_activity() {
+        let cfg = Config { lowercase: true, ..Config::default() };
+        let r = episode();
+        let a = build(&cfg, &snap(true), Some(&r), None, Instant::now());
+        assert_eq!(a["details"], "breaking bad");
+        assert_eq!(a["state"], "paused · s2 - e3 · bit by a fly");
+        assert_eq!(a["assets"]["large_text"], "breaking bad (2008) · aired 2009");
+        assert_eq!(a["assets"]["small_text"], "paused");
+        assert_eq!(a["buttons"][0]["label"], "view on tmdb");
+        // URLs keep their case.
+        assert_eq!(a["assets"]["large_image"], "https://image.tmdb.org/t/p/w500/x.jpg");
+        assert_eq!(a["assets"]["small_image"], crate::config::BADGE_PAUSED);
     }
 
     #[test]

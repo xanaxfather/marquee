@@ -56,6 +56,8 @@ pub struct Config {
     pub small_image_playing: String,
     pub small_image_paused: String,
     pub fallback_image: String,
+    /// All-lowercase look: Discord card, menu, notifications ("marquee").
+    pub lowercase: bool,
     pub log_level: String,
 }
 
@@ -85,6 +87,7 @@ impl Default for Config {
             small_image_playing: BADGE_PLAYING.into(),
             small_image_paused: BADGE_PAUSED.into(),
             fallback_image: String::new(),
+            lowercase: false,
             log_level: "info".into(),
         }
     }
@@ -151,6 +154,11 @@ small_image_paused = "https://raw.githubusercontent.com/xanaxfather/marquee/main
 # Large image when no artwork could be found (asset key or URL). Empty = none.
 fallback_image = ""
 
+# All-lowercase look: the Discord card, menu and notifications ("marquee",
+# "breaking bad", "s2 - e3 · bit by a fly"). Your Discord application's name
+# ("Watching <name>") comes from the Developer Portal; rename it there too.
+lowercase = false
+
 # trace | debug | info | warn | error  (RUST_LOG overrides this)
 log_level = "info"
 "#;
@@ -184,6 +192,7 @@ impl Config {
         }
         cfg.discord_client_id = cfg.discord_client_id.trim().to_string();
         cfg.tmdb_api_key = cfg.tmdb_api_key.trim().to_string();
+        crate::style::set_lowercase(cfg.lowercase);
         Ok(cfg)
     }
 
@@ -199,7 +208,7 @@ impl Config {
     /// One-line summary for diagnostics with secrets redacted.
     pub fn summary(&self) -> String {
         format!(
-            "discord_client_id={} tmdb_api_key={} language={} iina_socket={} mpv_ipc={} vlc_port={} vlc_password={} mpc_port={} disabled={:?} show_when_paused={} status_display={:?}",
+            "discord_client_id={} tmdb_api_key={} language={} iina_socket={} mpv_ipc={} vlc_port={} vlc_password={} mpc_port={} disabled={:?} show_when_paused={} status_display={:?} lowercase={}",
             if self.discord_client_id.is_empty() { "<unset>" } else { &self.discord_client_id },
             redact(&self.tmdb_api_key),
             self.language,
@@ -211,6 +220,7 @@ impl Config {
             self.disabled_players,
             self.show_when_paused,
             self.status_display,
+            self.lowercase,
         )
     }
 }

@@ -49,12 +49,14 @@ pub fn open_url(url: &str) {
 /// Tell the user something (best effort, never blocks the caller).
 pub fn notify(message: &str) {
     tracing::info!(message, "notification");
+    let message = &crate::style::text(message);
+    let app_name = crate::style::app_name();
     #[cfg(target_os = "macos")]
     {
         let script = format!(
             "display notification {} with title \"{}\"",
             serde_json::to_string(message).unwrap_or_default(),
-            paths::APP_NAME
+            app_name
         );
         let _ = std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).spawn();
     }
@@ -62,7 +64,7 @@ pub fn notify(message: &str) {
     {
         // Only sent in response to a menu action, so a small dialog is appropriate.
         let text: Vec<u16> = message.encode_utf16().chain(std::iter::once(0)).collect();
-        let title: Vec<u16> = paths::APP_NAME.encode_utf16().chain(std::iter::once(0)).collect();
+        let title: Vec<u16> = app_name.encode_utf16().chain(std::iter::once(0)).collect();
         std::thread::spawn(move || unsafe {
             use windows::Win32::UI::WindowsAndMessaging::{MB_ICONINFORMATION, MB_OK, MB_SETFOREGROUND, MessageBoxW};
             use windows::core::PCWSTR;

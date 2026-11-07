@@ -4,7 +4,7 @@
 
 use crate::core::{Command, Health, Msg, NowState, UiEvent, UiStatus};
 use crate::picker::{Picker, PickerMsg};
-use crate::{icons, paths, platform};
+use crate::{icons, paths, platform, style};
 use std::sync::mpsc::Sender;
 use tao::event::{Event, StartCause, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
@@ -134,7 +134,27 @@ fn install_app_menu() {
 #[cfg(not(target_os = "macos"))]
 fn install_app_menu() {}
 
+fn login_label() -> &'static str {
+    if cfg!(windows) { "Start with Windows" } else { "Launch at Login" }
+}
+
+/// Fixed menu labels in the configured case (re-applied so Reload Config
+/// switches the lowercase look without a restart).
+fn relabel(items: &Items) {
+    let t = style::text;
+    items.enabled.set_text(t("Show on Discord"));
+    items.artwork.set_text(t("Choose Artwork…"));
+    items.reconnect.set_text(t("Reconnect to Discord"));
+    items.reload.set_text(t("Reload Config"));
+    items.open_config.set_text(t("Open Config File…"));
+    items.open_logs.set_text(t("Open Logs Folder"));
+    items.clear_cache.set_text(t("Clear Metadata Cache"));
+    items.login.set_text(t(login_label()));
+    items.quit.set_text(t(&format!("Quit {}", paths::APP_NAME)));
+}
+
 fn apply(items: &Items, icons: Option<&Icons>, tray: Option<&TrayIcon>, s: &UiStatus) {
+    relabel(items);
     if let Some(ic) = icons {
         let now = match s.now_state {
             NowState::Playing => &ic.playing,
@@ -147,14 +167,14 @@ fn apply(items: &Items, icons: Option<&Icons>, tray: Option<&TrayIcon>, s: &UiSt
         items.player.set_icon(Some(ic.health(s.player_health)));
         set_glyph(&items.setup, if s.needs_setup { ic.warning.clone() } else { ic.setup.clone() });
     }
-    items.now.set_text(&s.now);
-    items.discord.set_text(&s.discord);
-    items.player.set_text(&s.player);
+    items.now.set_text(style::text(&s.now));
+    items.discord.set_text(style::text(&s.discord));
+    items.player.set_text(style::text(&s.player));
     items.enabled.set_checked(s.enabled);
     items.artwork.set_enabled(s.can_pick_artwork);
-    items.setup.set_text(if s.needs_setup { "Set Up Players…  (needed)" } else { "Set Up Players…" });
+    items.setup.set_text(style::text(if s.needs_setup { "Set Up Players…  (needed)" } else { "Set Up Players…" }));
     if let Some(t) = tray {
-        let _ = t.set_tooltip(Some(format!("{}\n{}", paths::APP_NAME, s.now)));
+        let _ = t.set_tooltip(Some(style::text(&format!("{}\n{}", paths::APP_NAME, s.now))));
     }
 }
 
@@ -267,25 +287,21 @@ pub fn run(core_tx: Sender<Msg>, start_core: impl FnOnce(Box<dyn Fn(UiEvent) + S
     let picker_proxy = event_loop.create_proxy();
     let mut start_core = Some(start_core);
 
+    let t = style::text;
     let items = Items {
-        now: icon_item("Nothing playing", false),
-        discord: icon_item("Discord: connecting…", false),
-        player: icon_item("Waiting for a player…", false),
-        enabled: CheckMenuItem::new("Show on Discord", true, true, None),
-        artwork: icon_item("Choose Artwork…", false),
-        setup: icon_item("Set Up Players…", true),
-        reconnect: icon_item("Reconnect to Discord", true),
-        reload: icon_item("Reload Config", true),
-        open_config: icon_item("Open Config File…", true),
-        open_logs: icon_item("Open Logs Folder", true),
-        clear_cache: icon_item("Clear Metadata Cache", true),
-        login: CheckMenuItem::new(
-            if cfg!(windows) { "Start with Windows" } else { "Launch at Login" },
-            true,
-            platform::launch_at_login_enabled(),
-            None,
-        ),
-        quit: icon_item(&format!("Quit {}", paths::APP_NAME), true),
+        now: icon_item(&t("Nothing playing"), false),
+        discord: icon_item(&t("Discord: connecting…"), false),
+        player: icon_item(&t("Waiting for a player…"), false),
+        enabled: CheckMenuItem::new(t("Show on Discord"), true, true, None),
+        artwork: icon_item(&t("Choose Artwork…"), false),
+        setup: icon_item(&t("Set Up Players…"), true),
+        reconnect: icon_item(&t("Reconnect to Discord"), true),
+        reload: icon_item(&t("Reload Config"), true),
+        open_config: icon_item(&t("Open Config File…"), true),
+        open_logs: icon_item(&t("Open Logs Folder"), true),
+        clear_cache: icon_item(&t("Clear Metadata Cache"), true),
+        login: CheckMenuItem::new(t(login_label()), true, platform::launch_at_login_enabled(), None),
+        quit: icon_item(&t(&format!("Quit {}", paths::APP_NAME)), true),
     };
     let mut icons: Option<Icons> = None;
     let mut tray: Option<TrayIcon> = None;
@@ -339,7 +355,7 @@ pub fn run(core_tx: Sender<Msg>, start_core: impl FnOnce(Box<dyn Fn(UiEvent) + S
                 if let Err(e) = result {
                     tracing::error!(error = %e, "could not build menu");
                 }
-                let builder = TrayIconBuilder::new().with_menu(Box::new(menu)).with_tooltip(paths::APP_NAME);
+                let builder = TrayIconBuilder::new().with_menu(Box::new(menu)).with_tooltip(style::app_name());
                 #[cfg(target_os = "macos")]
                 let builder = builder.with_icon_templated(tray_icon());
                 #[cfg(not(target_os = "macos"))]
