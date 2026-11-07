@@ -19,32 +19,54 @@ const POLL: Duration = Duration::from_secs(3);
 struct Known {
     exe: &'static [&'static str],
     name: &'static str,
+    /// Text before the file name ("QuickLook - Movie.mkv" in QuickLook 4+).
+    prefixes: &'static [&'static str],
     suffixes: &'static [&'static str],
     /// The title must end in a video extension (QuickLook also previews documents).
     needs_extension: bool,
 }
 
 const KNOWN: &[Known] = &[
-    Known { exe: &["quicklook.exe"], name: "QuickLook", suffixes: &[], needs_extension: true },
+    Known {
+        exe: &["quicklook.exe"],
+        name: "QuickLook",
+        prefixes: &["QuickLook - ", "QuickLook – ", "QuickLook — "],
+        suffixes: &[" - QuickLook"],
+        needs_extension: true,
+    },
     Known {
         exe: &["potplayermini64.exe", "potplayermini.exe", "potplayer64.exe", "potplayer.exe"],
         name: "PotPlayer",
+        prefixes: &[],
         suffixes: &[" - PotPlayer"],
         needs_extension: false,
     },
     Known {
         exe: &["kmplayer64x.exe", "kmplayer.exe"],
         name: "KMPlayer",
+        prefixes: &[],
         suffixes: &[" - KMPlayer"],
         needs_extension: false,
     },
-    Known { exe: &["gom64.exe", "gom.exe"], name: "GOM Player", suffixes: &[" - GOM Player"], needs_extension: false },
+    Known {
+        exe: &["gom64.exe", "gom.exe"],
+        name: "GOM Player",
+        prefixes: &[],
+        suffixes: &[" - GOM Player"],
+        needs_extension: false,
+    },
 ];
 
 /// File name shown in a known player's title, if any.
 pub fn title_to_file(known_name: &str, title: &str) -> Option<String> {
     let k = KNOWN.iter().find(|k| k.name == known_name)?;
     let mut t = title.trim();
+    for p in k.prefixes {
+        if t.len() > p.len() && t.is_char_boundary(p.len()) && t[..p.len()].eq_ignore_ascii_case(p) {
+            t = &t[p.len()..];
+            break;
+        }
+    }
     for s in k.suffixes {
         t = t.strip_suffix(s).unwrap_or(t);
     }
@@ -149,5 +171,15 @@ mod tests {
         assert_eq!(title_to_file("PotPlayer", "PotPlayer"), None);
         assert_eq!(title_to_file("QuickLook", "Breaking.Bad.S02E03.mkv").as_deref(), Some("Breaking.Bad.S02E03.mkv"));
         assert_eq!(title_to_file("QuickLook", "report.pdf"), None);
+        assert_eq!(
+            title_to_file(
+                "QuickLook",
+                "QuickLook - Slasher (2016) - S01E08 - Soon Your Own Eyes Will See (1080p BluRay x265 RCVR).mkv"
+            )
+            .as_deref(),
+            Some("Slasher (2016) - S01E08 - Soon Your Own Eyes Will See (1080p BluRay x265 RCVR).mkv")
+        );
+        assert_eq!(title_to_file("QuickLook", "QuickLook - report.pdf"), None);
+        assert_eq!(title_to_file("QuickLook", "QuickLook"), None);
     }
 }

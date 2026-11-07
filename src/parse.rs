@@ -531,6 +531,13 @@ mod tests {
     }
 
     #[test]
+    fn year_in_parens_before_episode() {
+        let g = parse_name("Slasher (2016) - S01E08 - Soon Your Own Eyes Will See (1080p BluRay x265 RCVR).mkv");
+        assert_eq!((g.title.as_str(), g.year, g.episode), ("Slasher", Some(2016), ep(1, 8)));
+        assert_eq!(g.episode_title.as_deref(), Some("Soon Your Own Eyes Will See"));
+    }
+
+    #[test]
     fn year_seasons() {
         let g = parse_name("Tom and Jerry - S1940E01 - Puss Gets The Boot.mkv");
         assert_eq!(g.title, "Tom and Jerry");
