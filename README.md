@@ -40,46 +40,24 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 
 ## Features
 
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### 🎬 Works out what you're watching
-Reads names like `Under THe Skin (2013).mp4`, `Breaking.Bad.S02E03.720p.mkv` or `Season 2/03 - Bit by a Dead Bee.mkv` and matches them to the right title on TMDB. It handles odd capitalization, release tags, brackets, multi-episode files and folder layouts. If no match is confident enough, it shows the cleaned-up file name instead of guessing.
-
-### 📺 Rich presence that keeps up
-Shows title, season and episode, episode name, year, genres and rating, with a progress bar based on the real playback position. It updates when you pause, resume, seek, change speed or switch files.
-
-</td>
-<td width="50%" valign="top">
-
-### 🖼️ Artwork you choose
-Episode stills by default. Open the picker to choose any still, season poster, show poster or backdrop for one episode, one season or the whole show, or paste your own image URL.
-
-### 🪶 Light by design
-Event-driven where the player allows it (mpv and IINA send updates instead of being polled). About 16 MB of memory and 0% CPU when idle. It caches metadata, reconnects by itself, and copes with network problems and unknown files.
-
-</td>
-</tr>
-</table>
+- **Identifies files by name.** `Under THe Skin (2013).mp4`, `Breaking.Bad.S02E03.720p.mkv` and `Breaking Bad/Season 2/03.mkv` all resolve to the right TMDB entry, despite the release tags, odd capitalization and folder layouts. When no match is close enough, Marquee shows the cleaned-up file name rather than a wrong title.
+- **Tracks playback.** Pausing, seeking, changing speed or switching files updates Discord within a couple of seconds. The progress bar uses the player's real position.
+- **Uses episode stills.** You can switch any episode, season or show to a different still, poster, backdrop or your own image from the artwork picker.
+- **Stays out of the way.** About 16 MB of memory and no CPU while idle. Metadata is cached, and Discord or player restarts are handled without you doing anything.
 
 ## Supported players
 
-| Player | macOS | Windows | How Marquee sees it | Setup |
-|---|:---:|:---:|---|---|
-| **IINA** | ✅ | | mpv IPC socket (push events) | automatic |
-| **VLC** | ✅ | ✅ | VLC web interface (localhost) | automatic |
-| **mpv / mpv.net** | ✅ | ✅ | mpv IPC socket / named pipe | automatic |
-| **MPC-HC** | | ✅ | web interface (localhost) | automatic |
-| **MPC-BE** | | ✅ | web interface (localhost) | turn on *Options → Web Interface* |
-| **Media Player** (Windows 11), **Movies & TV** | | ✅ | Windows media controls | none |
-| **QuickLook** (space-bar preview) | | ✅ | window title | none |
-| **PotPlayer**, **KMPlayer**, **GOM Player** | | ✅ | window title | none |
+**macOS:** IINA, VLC, mpv
 
-"Automatic" means **Set Up Players…** in the menu changes just the setting that player needs and leaves its other settings alone. Restart the player once afterwards.
+**Windows:** VLC, mpv and mpv.net, MPC-HC, MPC-BE, Media Player, Movies & TV, QuickLook, PotPlayer, KMPlayer, GOM Player
 
-> [!NOTE]
-> Windows' media controls and window titles don't give a file path or (for window titles) a playback position, so those players show a progress bar only when the player reports one.
+For IINA, VLC, mpv and MPC-HC, choose **Set Up Players…** once and restart the player. It turns on the one setting each player needs to report what it's playing (IINA's mpv socket, VLC's local web interface, and so on) and leaves everything else alone. For MPC-BE, turn on *Options → Web Interface* yourself. The others need no setup.
+
+Not every player reports the same detail:
+
+- **IINA, mpv, VLC, MPC-HC, MPC-BE** report the full file path and the playback position, so you get the best matching and a progress bar.
+- **Media Player and Movies & TV** report a title and position through Windows' media controls, but no path.
+- **QuickLook, PotPlayer, KMPlayer and GOM** are read from the window title. That gives the file name only, with no progress bar.
 
 ## Install
 
