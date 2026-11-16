@@ -31,6 +31,16 @@ pub enum ArtworkMode {
     Backdrop,
 }
 
+/// How a title matched by the privacy lists appears on Discord.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PrivacyMode {
+    /// Nothing is shown.
+    Hide,
+    /// "Watching something", no title, artwork or links.
+    Generic,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -50,7 +60,27 @@ pub struct Config {
     pub disabled_players: Vec<String>,
     pub show_when_paused: bool,
     pub show_buttons: bool,
+    /// Buttons in order (Discord shows the first two): "tmdb", "imdb",
+    /// "letterboxd", "trakt", "trailer", "wikipedia", or "Label | https://…{title}…".
+    pub buttons: Vec<String>,
     pub show_extras: bool,
+    /// Line templates; see `presence::PLACEHOLDERS`. Empty = built-in default.
+    pub episode_details: String,
+    pub episode_state: String,
+    pub episode_image_text: String,
+    pub movie_details: String,
+    pub movie_state: String,
+    pub movie_image_text: String,
+    /// Privacy: titles (exact, or ending in `*` for a prefix), folders and genres to keep off Discord.
+    pub hide_titles: Vec<String>,
+    pub hide_folders: Vec<String>,
+    pub hide_genres: Vec<String>,
+    pub privacy_mode: PrivacyMode,
+    /// Keep a local watch history (Recently Watched, stats).
+    pub history: bool,
+    pub check_updates: bool,
+    /// The welcome window has been completed.
+    pub setup_complete: bool,
     pub status_display: StatusDisplay,
     pub artwork: ArtworkMode,
     pub small_image_playing: String,
@@ -81,7 +111,21 @@ impl Default for Config {
             disabled_players: Vec::new(),
             show_when_paused: true,
             show_buttons: true,
+            buttons: vec!["tmdb".into(), "imdb".into()],
             show_extras: true,
+            episode_details: String::new(),
+            episode_state: String::new(),
+            episode_image_text: String::new(),
+            movie_details: String::new(),
+            movie_state: String::new(),
+            movie_image_text: String::new(),
+            hide_titles: Vec::new(),
+            hide_folders: Vec::new(),
+            hide_genres: Vec::new(),
+            privacy_mode: PrivacyMode::Hide,
+            history: true,
+            check_updates: true,
+            setup_complete: false,
             status_display: StatusDisplay::Details,
             artwork: ArtworkMode::Episode,
             small_image_playing: BADGE_PLAYING.into(),
@@ -129,9 +173,13 @@ disabled_players = []
 # Keep the presence visible (marked as paused) while playback is paused.
 show_when_paused = true
 
-# "View on TMDB" / "View on IMDb" buttons. Discord shows them to other
-# people, not on your own profile; the title and artwork link to TMDB too.
+# Link buttons. Discord shows them to other people, not on your own profile;
+# the title and artwork link to the first one too.
 show_buttons = true
+# In order; Discord shows the first two that apply. Choices: "tmdb", "imdb",
+# "letterboxd" (movies), "trakt", "trailer" (YouTube search), "wikipedia",
+# or your own: "Label | https://example.com/search?q={title}".
+buttons = ["tmdb", "imdb"]
 
 # Genres and rating for movies, air date for episodes.
 show_extras = true
@@ -139,6 +187,27 @@ show_extras = true
 # Discord status line: "details" = "Watching Breaking Bad",
 # "state" = "Watching S2 - E3 · Bit by a Dead Bee", "name" = "Watching <app name>".
 status_display = "details"
+
+# Line templates (empty = default). Placeholders: {title} {year} {label}
+# ("S2 - E3") {season} {episode} {episode_title} {air_date} {air_year}
+# {genres} {rating} {tagline} {player}. Parts separated by " · " vanish when
+# their placeholders are empty; {a|b} uses b when a is empty.
+episode_details = ""      # default: {title}
+episode_state = ""        # default: {label} · {episode_title}
+episode_image_text = ""   # default: {title} ({year}) · aired {air_year}
+movie_details = ""        # default: {title}
+movie_state = ""          # default: {year} · {genres} · ★ {rating}
+movie_image_text = ""     # default: {tagline|title}
+
+# ---- Privacy -------------------------------------------------------------
+# Keep titles off Discord: exact names (or "Prefix*"), folders, TMDB genres.
+hide_titles = []
+hide_folders = []
+hide_genres = []
+# "hide" = show nothing, "generic" = "Watching something" without details.
+privacy_mode = "hide"
+# Keep a local watch history (Recently Watched in the menu, stats in Settings).
+history = true
 
 # Default artwork: "episode" (episode thumbnail), "season" (season poster),
 # "poster" (show/movie poster) or "backdrop". Movies use their poster for
@@ -158,6 +227,9 @@ fallback_image = ""
 # "breaking bad", "s2 - e3 · bit by a fly"). Your Discord application's name
 # ("Watching <name>") comes from the Developer Portal; rename it there too.
 lowercase = false
+
+# Check GitHub for new versions once a day.
+check_updates = true
 
 # trace | debug | info | warn | error  (RUST_LOG overrides this)
 log_level = "info"
@@ -246,6 +318,36 @@ pub fn persist_value(key: &str, toml_value: &str) -> Result<()> {
         lines.push(format!("{key} = {toml_value}"));
     }
     std::fs::write(&path, lines.join("\n") + "\n").with_context(|| format!("writing {}", path.display()))
+}
+
+/// Save settings from the Settings window: `{key: json value}`. Unknown keys
+/// and values of the wrong type are refused before anything is written.
+pub fn persist_json(values: &serde_json::Map<String, serde_json::Value>) -> Result<()> {
+    let mut merged = serde_json::to_value(Config::load().unwrap_or_default())?;
+    for (k, v) in values {
+        let slot = merged.get_mut(k).with_context(|| format!("unknown setting {k}"))?;
+        *slot = v.clone();
+    }
+    // Type check: the merged result must still be a valid config.
+    serde_json::from_value::<Config>(merged).context("invalid settings")?;
+    for (k, v) in values {
+        let tv = toml::Value::try_from(v).with_context(|| format!("setting {k}"))?;
+        persist_value(k, &tv.to_string())?;
+    }
+    Ok(())
+}
+
+/// The config with `values` applied (for live previews; nothing is saved).
+pub fn with_values(base: &Config, values: &serde_json::Map<String, serde_json::Value>) -> Config {
+    let mut v = serde_json::to_value(base).unwrap_or_default();
+    if let Some(o) = v.as_object_mut() {
+        for (k, val) in values {
+            if o.contains_key(k) {
+                o.insert(k.clone(), val.clone());
+            }
+        }
+    }
+    serde_json::from_value(v).unwrap_or_else(|_| base.clone())
 }
 
 fn redact(s: &str) -> String {

@@ -33,6 +33,10 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 - [Setup](#setup-5-minutes)
 - [How identification works](#how-identification-works)
 - [Choosing artwork](#choosing-artwork)
+- [Fixing a wrong match](#fixing-a-wrong-match)
+- [Discord card, buttons and privacy](#discord-card-buttons-and-privacy)
+- [Watch history](#watch-history)
+- [Updates](#updates)
 - [Configuration](#configuration)
 - [Command line](#command-line)
 - [Troubleshooting](#troubleshooting)
@@ -42,6 +46,10 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 
 - **Identifies files by name.** `Under THe Skin (2013).mp4`, `Breaking.Bad.S02E03.720p.mkv` and `Breaking Bad/Season 2/03.mkv` all resolve to the right TMDB entry, despite the release tags, odd capitalization and folder layouts. When no match is close enough, Marquee shows the cleaned-up file name rather than a wrong title.
 - **Tracks playback.** Pausing, seeking, changing speed or switching files updates Discord within a couple of seconds. The progress bar uses the player's real position.
+- **Reads embedded metadata.** Kodi, Jellyfin and Plex `.nfo` files, MP4 tags and Matroska tags are used before the file name, including the TMDB or IMDb id they carry.
+- **Lets you fix mistakes.** **Fix Match…** searches TMDB so you can pick the right title for one file, a folder, or every file with that name.
+- **Your card, your way.** Rewrite each line with templates, choose which link buttons appear and in what order, and keep titles, folders or genres off Discord.
+- **Keeps a watch history.** Recently watched titles in the menu, with time watched and progress, stored only on your computer.
 - **Uses episode stills.** You can switch any episode, season or show to a different still, poster, backdrop or your own image from the artwork picker.
 - **Stays out of the way.** About 16 MB of memory and no CPU while idle. Metadata is cached, and Discord or player restarts are handled without you doing anything.
 
@@ -70,21 +78,21 @@ git clone https://github.com/xanaxfather/marquee.git && cd marquee
 ./scripts/bundle.sh && cp -R dist/Marquee.app /Applications/
 ```
 
-Open **Marquee** from Applications. Its icon appears in the menu bar. There's no Dock icon and no window.
+Or download `marquee-macos.zip` from the [latest release](../../releases/latest). Open **Marquee** from Applications. Its icon appears in the menu bar, and a short welcome walks you through setup.
 
 ### Windows
 
-Download `marquee-windows-x64.zip` from the latest successful [CI run](../../actions), unzip it anywhere, and run `marquee.exe`. Its icon appears in the system tray (it may be in the overflow area at first; drag it out to keep it visible). To build it yourself, see [Building from source](#building-from-source).
+Download `marquee-windows-x64.zip` from the [latest release](../../releases/latest), unzip it anywhere, and run `marquee.exe`. Its icon appears in the system tray (it may be in the overflow area at first; drag it out to keep it visible). To build it yourself, see [Building from source](#building-from-source).
 
 > [!TIP]
-> Turn on **Launch at Login** (macOS) or **Start with Windows** in the menu so Marquee is always running.
+> Turn on **Launch at login** (macOS) or **Start with Windows** in **Settings… → General** so Marquee is always running.
 
 ## Setup (5 minutes)
 
 1. **Create a Discord application** at the [Discord Developer Portal](https://discord.com/developers/applications). Discord shows its name ("Watching **Movies**"), so pick something like *Movies* or *TV*. Copy the **Application ID**.
 2. **Get a free TMDB key** from [TMDB API settings](https://www.themoviedb.org/settings/api). The v3 *API Key* and the v4 *Read Access Token* both work.
-3. Choose **Open Config File…** in the menu, paste both values, save, then choose **Reload Config**.
-4. Choose **Set Up Players…**, then restart your player once.
+3. Paste both into the welcome window (or **Settings… → General** later).
+4. Choose **Set Up Players**, then restart your player once.
 
 Check everything at once:
 
@@ -107,7 +115,7 @@ marquee --diagnose
 
 ## How identification works
 
-Marquee builds a ranked list of guesses from the file name and then the folder names. Each guess is scored against TMDB search results:
+Marquee first reads what's stored with the video: a Kodi/Jellyfin/Plex `.nfo` next to it (and `tvshow.nfo` in the show folder), iTunes-style MP4 tags, or Matroska tags. Then it builds a ranked list of guesses from the file name and the folder names. Each guess is scored against TMDB search results:
 
 - **Title similarity** ignores case, accents, punctuation, articles and spacing, so `S.W.A.T.` matches `S W A T`.
 - **Year** is a strong check: off by one is fine, anything further is rejected.
@@ -149,9 +157,29 @@ By default an episode shows its **episode still**, falling back to the season po
 
 The picker uses each OS's built-in web view (WebKit on macOS, WebView2 on Windows). It exists only while open.
 
+## Fixing a wrong match
+
+Choose **Fix Match…** while the file plays. Search TMDB, pick the right movie or show, and choose whether it applies to **this file**, **this folder**, or **every file with the same name**. For a single episode you can also set the exact season and episode. **Go back to automatic matching** removes your choice.
+
+## Discord card, buttons and privacy
+
+**Settings… → Discord card** has a live preview of your card.
+
+- **Templates** rewrite the title line, the second line and the artwork hover text, separately for episodes and movies. Placeholders: `{title}` `{year}` `{label}` (S2 - E3) `{season}` `{episode}` `{episode_title}` `{air_date}` `{air_year}` `{genres}` `{rating}` `{tagline}` `{player}`. A part between ` · ` separators disappears when its placeholders are empty, and `{tagline|title}` falls back to the title.
+- **Buttons**: TMDB, IMDb, Letterboxd (movies), Trakt, Watch Trailer, Wikipedia, or your own link such as `https://example.com/?q={title}`. Discord shows the first two that apply.
+- **Privacy**: list titles (or `Prefix*`), folders and genres to keep private, and choose whether they show nothing or a generic "Watching something". **Hide This Title** in the menu adds what's playing.
+
+## Watch history
+
+**Recently Watched** in the menu lists the last ten titles with this week's watch time; choosing one plays the file again. **Settings… → History** has everything, with progress, time watched and filtering. History is stored in `history.json` next to the config and can be turned off under Privacy. Private titles are never recorded.
+
+## Updates
+
+Marquee checks GitHub for a new release once a day (turn it off in **Settings… → General**). When one is available, **Install Update…** in the menu downloads it, replaces the app and restarts it.
+
 ## Configuration
 
-The config file is created with comments on first run. **Open Config File…** opens it.
+Everything is in **Settings…**. The same options live in a commented config file you can also edit by hand (**Settings… → About → Config file**).
 
 | | macOS | Windows |
 |---|---|---|
@@ -169,8 +197,15 @@ The config file is created with comments on first run. **Open Config File…** o
 | `language` | `en-US` | Language for titles and episode names |
 | `artwork` | `episode` | Default image: `episode`, `season`, `poster` or `backdrop` |
 | `show_when_paused` | `true` | Keep the presence (marked *Paused*) while paused |
-| `show_buttons` | `true` | "View on TMDB" / "View on IMDb" buttons |
+| `show_buttons` | `true` | Link buttons under the card |
+| `buttons` | `["tmdb", "imdb"]` | Buttons in order: `tmdb`, `imdb`, `letterboxd`, `trakt`, `trailer`, `wikipedia`, or `"Label \| https://…{title}"` |
 | `show_extras` | `true` | Genres and rating for movies, air date for episodes |
+| `episode_details` / `episode_state` / `episode_image_text` | | Templates for episodes (empty = default) |
+| `movie_details` / `movie_state` / `movie_image_text` | | Templates for movies (empty = default) |
+| `hide_titles` / `hide_folders` / `hide_genres` | `[]` | Keep these off Discord |
+| `privacy_mode` | `hide` | `hide` shows nothing, `generic` shows "Watching something" |
+| `history` | `true` | Keep a local watch history |
+| `check_updates` | `true` | Check GitHub for new versions daily |
 | `status_display` | `details` | Member-list text: the title (`details`), the episode line (`state`) or the app name (`name`) |
 | `small_image_playing` / `_paused` | Marquee's play/pause badges | Corner badge (asset key or URL, `""` for none) |
 | `fallback_image` | | Image used when nothing is identified |
@@ -216,13 +251,13 @@ Run `marquee --diagnose`. The usual causes are: Discord isn't running, `discord_
 <details>
 <summary><b>The wrong title was matched</b></summary>
 
-Add the year to the file name (`Title (Year).mkv`) or keep shows in `Show/Season N/` folders. Then choose **Clear Metadata Cache**. `marquee --lookup <file>` with `RUST_LOG=debug` shows why each candidate scored the way it did.
+Choose **Fix Match…** and pick the right title. For whole libraries, add the year to file names (`Title (Year).mkv`), keep shows in `Show/Season N/` folders, or add `{tmdb-…}` tags or `.nfo` files. `marquee --lookup <file>` with `RUST_LOG=debug` shows why each candidate scored the way it did.
 </details>
 
 <details>
 <summary><b>The menu says "config file has an error"</b></summary>
 
-The config file isn't valid TOML (a stray character is enough). The exact line is in the log. Fix it, then choose **Reload Config**.
+The config file isn't valid TOML (a stray character is enough). The exact line is in the log. Fix it, then choose **Settings… → About → Reload**.
 </details>
 
 ## Building from source

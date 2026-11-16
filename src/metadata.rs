@@ -1,6 +1,8 @@
 //! Path → TMDB metadata, with caching.
 
 use crate::cache::{Cache, Lookup};
+use crate::embedded;
+use crate::matches::{self, MatchOverride, MatchScope};
 use crate::matching::{self, normalize};
 use crate::parse::{self, EpisodeNo, Guess};
 use crate::tmdb::{self, SearchResult, Tmdb, TmdbError};
@@ -95,7 +97,7 @@ struct EpisodeDetails {
     still: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Resolution {
     pub path: String,
     /// Best parse of the filename, used for display when `media` is `None`.
@@ -104,11 +106,49 @@ pub struct Resolution {
     /// A network error prevented a complete answer; worth retrying.
     pub transient: bool,
     pub error: Option<String>,
+    /// The match was picked by hand ("Fix Match…") at this scope.
+    pub override_scope: Option<MatchScope>,
 }
 
 pub struct Resolver {
     tmdb: Tmdb,
     cache: Cache,
+    matches: matches::Store,
+}
+
+/// Title the file name parses to; the key for name-wide match overrides.
+pub fn parsed_title(path: &str) -> String {
+    parse::hypotheses(path).into_iter().next().map(|g| g.title).unwrap_or_default()
+}
+
+/// Hypotheses for a hand-picked match: the chosen id, keeping the file's
+/// episode numbering unless an exact episode was given.
+fn forced_hypotheses(hyps: &[Guess], o: &MatchOverride) -> Vec<Guess> {
+    let ids = parse::Ids { tmdb: Some(o.tmdb_id), ..Default::default() };
+    let base = Guess { title: o.title.clone(), year: o.year, ids, ..Default::default() };
+    match o.kind {
+        MediaKind::Movie => vec![base],
+        MediaKind::Episode => {
+            if let (Some(season), Some(episode)) = (o.season, o.episode) {
+                return vec![Guess { episode: Some(EpisodeNo { season, episode, last: None }), ..base }];
+            }
+            let mut out: Vec<Guess> = hyps
+                .iter()
+                .filter(|h| h.is_episode())
+                .map(|h| Guess {
+                    episode: h.episode,
+                    episode_title: h.episode_title.clone(),
+                    absolute: h.absolute,
+                    air_date: h.air_date.clone(),
+                    ..base.clone()
+                })
+                .collect();
+            if out.is_empty() {
+                out.push(base); // show without an episode number
+            }
+            out
+        }
+    }
 }
 
 fn genres(v: &Value) -> Vec<String> {
@@ -203,7 +243,98 @@ fn query_variants(title: &str) -> Vec<String> {
 
 impl Resolver {
     pub fn new(tmdb_key: &str, language: &str) -> Self {
-        Self { tmdb: Tmdb::new(tmdb_key, language), cache: Cache::open(crate::paths::cache_file()) }
+        Self {
+            tmdb: Tmdb::new(tmdb_key, language),
+            cache: Cache::open(crate::paths::cache_file()),
+            matches: matches::Store::open(),
+        }
+    }
+
+    /// Hypotheses to try, best first: hand-picked match, embedded metadata,
+    /// the file name, then loose embedded titles.
+    fn hypotheses(&mut self, path: &str) -> (Vec<Guess>, Option<(MatchScope, MediaKind)>) {
+        let parsed = parse::hypotheses(path);
+        let emb = embedded::read(path);
+        let mut all: Vec<Guess> = emb.strong;
+        all.extend(parsed.iter().cloned().map(|mut h| {
+            if h.ids.is_empty() {
+                h.ids = if h.is_episode() { emb.show_ids.clone() } else { emb.movie_ids.clone() };
+            }
+            h
+        }));
+        all.extend(emb.weak);
+        let mut seen = std::collections::HashSet::new();
+        all.retain(|g| seen.insert((normalize(&g.title), g.year, g.episode, g.ids.clone())));
+
+        self.matches.refresh();
+        let title = parsed.first().map(|g| g.title.as_str()).unwrap_or("");
+        match self.matches.lookup(path, title) {
+            Some((scope, o)) => {
+                tracing::info!(path, ?scope, tmdb_id = o.tmdb_id, title = %o.title, "using hand-picked match");
+                (forced_hypotheses(&all, o), Some((scope, o.kind)))
+            }
+            None => (all, None),
+        }
+    }
+
+    /// TMDB search for "Fix Match…": movies and shows, most relevant first.
+    pub fn search(&self, query: &str, kind: &str) -> Result<Value, TmdbError> {
+        let query = query.trim();
+        if query.is_empty() {
+            return Ok(serde_json::json!({ "results": [] }));
+        }
+        let path = match kind {
+            "movie" => "/search/movie",
+            "tv" => "/search/tv",
+            _ => "/search/multi",
+        };
+        let v = self.tmdb.get(path, &[("query", query.to_string()), ("include_adult", "false".into())])?;
+        let results: Vec<Value> = v["results"]
+            .as_array()
+            .map(|a| a.as_slice())
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|r| {
+                let media_type = r["media_type"].as_str().unwrap_or(kind);
+                let tv = match media_type {
+                    "tv" => true,
+                    "movie" => false,
+                    _ => return None,
+                };
+                let title = r[if tv { "name" } else { "title" }].as_str()?;
+                Some(serde_json::json!({
+                    "kind": if tv { "Episode" } else { "Movie" },
+                    "id": r["id"].as_u64()?,
+                    "title": title,
+                    "original": r[if tv { "original_name" } else { "original_title" }].as_str().filter(|o| *o != title),
+                    "year": tmdb::year_of(&r[if tv { "first_air_date" } else { "release_date" }]),
+                    "poster": tmdb::image(&r["poster_path"], "w185"),
+                    "overview": r["overview"].as_str().unwrap_or(""),
+                    "votes": r["vote_count"].as_u64().unwrap_or(0),
+                }))
+            })
+            .take(30)
+            .collect();
+        Ok(serde_json::json!({ "results": results }))
+    }
+
+    /// Seasons of a show and their episode counts, for picking an exact episode.
+    pub fn seasons(&self, show_id: u64) -> Result<Value, TmdbError> {
+        let d = self.tmdb.get(&format!("/tv/{show_id}"), &[])?;
+        let seasons: Vec<Value> = d["seasons"]
+            .as_array()
+            .map(|a| a.as_slice())
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|s| {
+                Some(serde_json::json!({
+                    "season": s["season_number"].as_u64()?,
+                    "name": s["name"].as_str().unwrap_or(""),
+                    "episodes": s["episode_count"].as_u64().unwrap_or(0),
+                }))
+            })
+            .collect();
+        Ok(serde_json::json!({ "id": show_id, "seasons": seasons }))
     }
 
     pub fn clear_cache(&mut self) {
@@ -214,10 +345,11 @@ impl Resolver {
 
     pub fn resolve(&mut self, path: &str) -> Resolution {
         let started = std::time::Instant::now();
-        let hyps = parse::hypotheses(path);
+        let (hyps, forced) = self.hypotheses(path);
         let fallback = hyps.first().cloned().unwrap_or_else(|| parse::display_fallback(path));
-        let mut res =
-            Resolution { path: path.to_string(), guess: fallback, media: None, transient: false, error: None };
+        let override_scope = forced.map(|(scope, _)| scope);
+        let mut res = Resolution { path: path.to_string(), guess: fallback, override_scope, ..Default::default() };
+        let forced_tv = forced.is_some_and(|(_, kind)| kind == MediaKind::Episode);
 
         if !self.tmdb.has_key() {
             res.error = Some("no TMDB API key configured".into());
@@ -228,7 +360,13 @@ impl Resolver {
 
         for h in &hyps {
             let mut partial = false;
-            let result = if h.is_episode() { self.resolve_episode(h, &mut partial) } else { self.resolve_movie(h) };
+            let result = if h.is_episode() {
+                self.resolve_episode(h, &mut partial)
+            } else if forced_tv {
+                self.resolve_show_only(h)
+            } else {
+                self.resolve_movie(h)
+            };
             match result {
                 Ok(Some(media)) => {
                     tracing::info!(
@@ -484,6 +622,25 @@ impl Resolver {
         };
         self.cache.put(&key, Some(&show));
         Ok(Some(show))
+    }
+
+    /// A hand-picked show for a file without an episode number.
+    fn resolve_show_only(&mut self, g: &Guess) -> Result<Option<Media>, TmdbError> {
+        let Some(show) = self.show(g)? else { return Ok(None) };
+        Ok(Some(Media {
+            kind: MediaKind::Episode,
+            tmdb_id: show.id,
+            title: show.name,
+            year: show.year,
+            poster: show.poster,
+            backdrop: show.backdrop,
+            season_poster: None,
+            genres: show.genres,
+            rating: show.rating,
+            tagline: None,
+            imdb_id: show.imdb_id,
+            episode: None,
+        }))
     }
 
     fn resolve_episode(&mut self, g: &Guess, partial: &mut bool) -> Result<Option<Media>, TmdbError> {

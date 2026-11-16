@@ -9,9 +9,12 @@ mod cache;
 mod config;
 mod core;
 mod discord;
+mod embedded;
+mod history;
 mod icons;
 mod ipc;
 mod logging;
+mod matches;
 mod matching;
 mod metadata;
 mod parse;
@@ -26,6 +29,8 @@ mod style;
 mod symbols;
 mod tmdb;
 mod tray;
+mod update;
+mod webwin;
 
 use config::Config;
 
@@ -61,6 +66,7 @@ fn main() {
         return;
     }
 
+    update::cleanup();
     let migrated = platform::migrate_legacy();
     let (mut cfg, config_error) = Config::load_or_default();
     let _guard = logging::init(&cfg.log_level);
@@ -151,6 +157,16 @@ fn cli_parse(args: &[String]) {
     println!("kind: {:?}", parse::file_kind(&path));
     for (i, h) in parse::hypotheses(&path).iter().enumerate() {
         println!("hypothesis {}: {}", i + 1, serde_json::to_string(h).unwrap_or_default());
+    }
+    let e = embedded::read(&path);
+    for g in &e.strong {
+        println!("embedded: {}", serde_json::to_string(g).unwrap_or_default());
+    }
+    for g in &e.weak {
+        println!("embedded (loose): {}", serde_json::to_string(g).unwrap_or_default());
+    }
+    if !e.show_ids.is_empty() || !e.movie_ids.is_empty() {
+        println!("nfo ids: show {:?} movie {:?}", e.show_ids, e.movie_ids);
     }
 }
 

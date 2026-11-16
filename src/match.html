@@ -1,0 +1,364 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Fix Match — Marquee</title>
+<style>
+:root {
+  --bg: #0d0e12;
+  --panel: #14161b;
+  --raise: #1b1e25;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #eceef2;
+  --muted: #a2a6b0;
+  --dim: #6d717c;
+  --accent: #5865f2;
+  --accent-hi: #6d78f6;
+  --green: #23a55a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default;
+}
+button, input, select { font: inherit; color: inherit; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; height: 100vh; }
+
+main { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+main::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 220px; pointer-events: none;
+  background: radial-gradient(120% 100% at 15% 0%, rgba(88, 101, 242, 0.13), transparent 60%);
+}
+header { position: relative; padding: 46px 28px 14px; }
+.title { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin: 0; }
+.subtitle { color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.subtitle code { font: 12px ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--text); }
+.now { margin-top: 12px; display: inline-flex; gap: 8px; align-items: center; padding: 5px 10px 5px 6px; border-radius: 8px; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--muted); max-width: 100%; }
+.now img { width: 20px; height: 30px; border-radius: 3px; object-fit: cover; background: var(--raise); }
+.now b { color: var(--text); font-weight: 600; }
+.now .tag { font-size: 11px; color: var(--accent-hi); }
+
+.searchbar { display: flex; gap: 10px; margin-top: 16px; }
+.search {
+  flex: 1; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.search:focus-within { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
+.search svg { color: var(--dim); flex: none; }
+.search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; padding: 9px 0; user-select: text; -webkit-user-select: text; }
+.search input::placeholder { color: var(--dim); }
+.seg { display: inline-grid; grid-auto-flow: column; padding: 3px; gap: 2px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 7px; color: var(--muted); font-weight: 550; transition: background .15s, color .15s; white-space: nowrap; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--raise); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.seg.full { display: grid; grid-auto-columns: 1fr; width: 100%; }
+.seg.full button { padding: 7px 6px; overflow: hidden; text-overflow: ellipsis; }
+
+.scroller { flex: 1; overflow-y: auto; padding: 6px 28px 28px; }
+.scroller::-webkit-scrollbar { width: 10px; }
+.scroller::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; border: 3px solid var(--bg); }
+.grid { display: grid; gap: 16px 14px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+.card { cursor: pointer; outline: none; }
+.poster {
+  position: relative; aspect-ratio: 2/3; border-radius: 9px; overflow: hidden; background: var(--raise);
+  box-shadow: 0 0 0 1px var(--line); transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s;
+}
+.poster img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s; }
+.poster img.ok { opacity: 1; }
+.poster .none { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: 12px; padding: 10px; text-align: center; }
+.card:hover .poster { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--line-strong), 0 10px 26px rgba(0,0,0,.45); }
+.card:focus-visible .poster { box-shadow: 0 0 0 2px var(--accent-hi); }
+.card.sel .poster { box-shadow: 0 0 0 2px var(--accent), 0 10px 30px rgba(88,101,242,.28); }
+.badge { position: absolute; left: 7px; top: 7px; padding: 2px 6px; border-radius: 5px; font-size: 10.5px; font-weight: 650; background: rgba(10,11,14,.72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.badge.cur { left: auto; right: 7px; background: rgba(35,165,90,.92); }
+.card .t { margin-top: 8px; font-weight: 600; font-size: 12.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card .y { color: var(--dim); font-size: 12px; margin-top: 1px; }
+.skel { background: linear-gradient(100deg, var(--raise) 30%, #23262e 50%, var(--raise) 70%); background-size: 300% 100%; animation: sh 1.4s ease-in-out infinite; }
+@keyframes sh { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.empty { grid-column: 1/-1; color: var(--muted); text-align: center; padding: 70px 20px; }
+.empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+
+aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; padding: 46px 22px 22px; gap: 20px; min-height: 0; overflow-y: auto; }
+.label { color: var(--muted); font-size: 12px; font-weight: 550; margin-bottom: 9px; }
+.pick { display: flex; gap: 14px; }
+.pick .p { width: 92px; flex: none; aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; background: var(--raise); box-shadow: 0 0 0 1px var(--line), 0 10px 24px rgba(0,0,0,.4); }
+.pick .p img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pick h2 { margin: 2px 0 2px; font-size: 16px; font-weight: 650; line-height: 1.25; }
+.pick .meta { color: var(--dim); font-size: 12px; }
+.pick .ov { color: var(--muted); font-size: 12px; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.pick a { color: var(--dim); text-decoration: none; font-size: 12px; }
+.pick a:hover { color: var(--text); }
+.placeholder { color: var(--dim); border: 1px dashed var(--line-strong); border-radius: 10px; padding: 26px 16px; text-align: center; }
+.hint { color: var(--dim); font-size: 11.5px; margin-top: 8px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.check { display: flex; gap: 8px; align-items: center; color: var(--text); cursor: pointer; }
+.check input { accent-color: var(--accent); margin: 0; }
+.field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.field span { color: var(--dim); font-size: 11.5px; }
+.field select, .field input {
+  background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; outline: none; width: 100%;
+}
+.field select:focus, .field input:focus { border-color: rgba(88,101,242,.7); }
+.field input:disabled, .field select:disabled { opacity: .45; }
+.btn { border: 0; border-radius: 9px; padding: 9px 14px; font-weight: 600; transition: background .15s, transform .08s, opacity .15s; }
+.btn:active { transform: scale(.98); }
+.btn.primary { background: var(--accent); color: white; width: 100%; padding: 11px; font-size: 13.5px; }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.primary:disabled { opacity: .45; }
+.btn.ghost { background: transparent; color: var(--muted); width: 100%; }
+.btn.ghost:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.spacer { flex: 1; }
+.actions { display: flex; flex-direction: column; gap: 6px; }
+
+.windows header, .windows aside { padding-top: 22px; }
+.windows .title { font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-weight: 600; }
+.windows .btn, .windows .seg button { border-radius: 6px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 16px); opacity: 0;
+  background: #f2f3f5; color: #111; padding: 9px 14px 9px 12px; border-radius: 999px; font-weight: 600;
+  display: flex; gap: 8px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  transition: opacity .2s, transform .25s cubic-bezier(.2,.8,.3,1); pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <main>
+    <header id="drag">
+      <h1 class="title">Fix Match</h1>
+      <div class="subtitle" id="file"></div>
+      <div id="now"></div>
+      <div class="searchbar">
+        <label class="search">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5" stroke-linecap="round"/></svg>
+          <input id="q" placeholder="Search movies and shows" spellcheck="false" autocomplete="off">
+        </label>
+        <div class="seg" id="kind">
+          <button data-k="multi" class="on">All</button><button data-k="movie">Movies</button><button data-k="tv">TV shows</button>
+        </div>
+      </div>
+    </header>
+    <div class="scroller"><div class="grid" id="grid"></div></div>
+  </main>
+
+  <aside id="aside">
+    <div>
+      <div class="label">Selected</div>
+      <div id="pick"><div class="placeholder">Choose the right title on the left.</div></div>
+    </div>
+
+    <div>
+      <div class="label">Use it for</div>
+      <div class="seg full" id="scope"></div>
+      <div class="hint" id="scopeHint"></div>
+    </div>
+
+    <div id="episodeBox" style="display:none">
+      <div class="label">Episode</div>
+      <label class="check"><input type="checkbox" id="fromFile" checked> <span id="fromFileLabel">Use the number in the file name</span></label>
+      <div class="row" style="margin-top:10px">
+        <label class="field"><span>Season</span><select id="season" disabled></select></label>
+        <label class="field"><span>Episode</span><input id="episode" type="number" min="1" value="1" disabled></label>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="actions">
+      <button class="btn primary" id="apply" disabled>Use This Match</button>
+      <button class="btn ghost" id="reset">Go back to automatic matching</button>
+    </div>
+  </aside>
+</div>
+<div class="toast" id="toast"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="#23a55a"/><path d="M4.5 8.3l2.2 2.2 4.8-4.8" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastText"></span></div>
+
+<script>
+const CTX = /*__CTX__*/null;
+document.documentElement.classList.add(CTX.platform || "macos");
+const $ = id => document.getElementById(id);
+const post = m => window.ipc.postMessage(JSON.stringify(m));
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+let kind = "multi", results = null, selected = null, seasons = null, lastQuery = "";
+let scope = CTX.override_scope || "file";
+
+// ---- header
+$("file").innerHTML = "File: <code></code>";
+$("file").querySelector("code").textContent = CTX.file || CTX.path;
+if (CTX.current) {
+  const c = CTX.current;
+  const label = [c.title + (c.year && c.kind === "Movie" ? " (" + c.year + ")" : ""), c.label].filter(Boolean).join(" · ");
+  $("now").innerHTML = `<div class="now">${c.poster ? `<img src="${esc(c.poster)}">` : ""}<span>Identified as <b></b></span>${CTX.override_scope ? '<span class="tag">picked by you</span>' : ""}</div>`;
+  $("now").querySelector("b").textContent = label;
+} else {
+  $("now").innerHTML = `<div class="now"><span>Not identified yet — showing <b></b></span></div>`;
+  $("now").querySelector("b").textContent = CTX.query || CTX.file;
+}
+
+// ---- scope
+const scopes = [
+  ["file", "This file", "Only this file."],
+  ["folder", "This folder", `Every file in “${CTX.folder || "this folder"}”.`],
+  ["name", "Same name", `Every file whose name reads as “${CTX.parsed_title}”, wherever it is.`],
+];
+function renderScope() {
+  $("scope").innerHTML = "";
+  for (const [id, label, hint] of scopes) {
+    if (id === "name" && !CTX.parsed_title) continue;
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.className = id === scope ? "on" : "";
+    b.onclick = () => { scope = id; renderScope(); renderEpisode(); };
+    $("scope").appendChild(b);
+    if (id === scope) $("scopeHint").textContent = hint;
+  }
+}
+renderScope();
+
+// ---- search
+function search() {
+  const q = $("q").value.trim();
+  lastQuery = q;
+  if (!q) { results = []; renderGrid(); return; }
+  results = null; renderGrid();
+  post({ type: "search", query: q, kind });
+}
+let timer;
+$("q").value = CTX.query || "";
+$("q").oninput = () => { clearTimeout(timer); timer = setTimeout(search, 350); };
+$("q").onkeydown = e => { if (e.key === "Enter") { clearTimeout(timer); search(); } };
+document.querySelectorAll("#kind button").forEach(b => b.onclick = () => {
+  kind = b.dataset.k;
+  document.querySelectorAll("#kind button").forEach(x => x.classList.toggle("on", x === b));
+  search();
+});
+
+function renderGrid() {
+  const grid = $("grid");
+  grid.innerHTML = "";
+  if (results === null) {
+    for (let i = 0; i < 12; i++) grid.insertAdjacentHTML("beforeend", `<div class="card"><div class="poster skel"></div><div class="t skel" style="height:12px;width:80%;border-radius:4px"></div></div>`);
+    return;
+  }
+  if (results.error) { grid.innerHTML = `<div class="empty"><b>Search failed</b></div>`; grid.firstChild.appendChild(document.createTextNode(results.error)); return; }
+  if (!results.length) { grid.innerHTML = `<div class="empty"><b>No results</b>Try a shorter name, or the original title.</div>`; return; }
+  for (const r of results) {
+    const c = document.createElement("div");
+    c.className = "card" + (selected && selected.id === r.id && selected.kind === r.kind ? " sel" : "");
+    c.tabIndex = 0;
+    const isCurrent = CTX.current && CTX.current.id === r.id && CTX.current.kind === r.kind;
+    c.innerHTML = `<div class="poster">${r.poster ? `<img loading="lazy" alt="">` : `<div class="none"></div>`}<span class="badge">${r.kind === "Movie" ? "Movie" : "TV"}</span>${isCurrent ? '<span class="badge cur">Current</span>' : ""}</div><div class="t"></div><div class="y"></div>`;
+    if (r.poster) { const img = c.querySelector("img"); img.onload = () => img.classList.add("ok"); img.src = r.poster; }
+    else c.querySelector(".none").textContent = r.title;
+    c.querySelector(".t").textContent = r.title;
+    c.querySelector(".y").textContent = [r.year, r.original].filter(Boolean).join(" · ");
+    c.onclick = () => choose(r);
+    c.ondblclick = () => { choose(r); apply(); };
+    c.onkeydown = e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); choose(r); } };
+    grid.appendChild(c);
+  }
+}
+
+function choose(r) {
+  selected = r; seasons = null;
+  document.querySelectorAll(".card").forEach((c, i) => c.classList.toggle("sel", results[i] === r));
+  const tmdb = `https://www.themoviedb.org/${r.kind === "Movie" ? "movie" : "tv"}/${r.id}`;
+  $("pick").innerHTML = `<div class="pick"><div class="p">${r.poster ? `<img src="${esc(r.poster)}">` : ""}</div><div style="min-width:0"><h2></h2><div class="meta"></div><div class="ov"></div><a href="#" id="tmdbLink">View on TMDB ↗</a></div></div>`;
+  $("pick").querySelector("h2").textContent = r.title;
+  $("pick").querySelector(".meta").textContent = [r.kind === "Movie" ? "Movie" : "TV show", r.year].filter(Boolean).join(" · ");
+  $("pick").querySelector(".ov").textContent = r.overview || "";
+  $("tmdbLink").onclick = e => { e.preventDefault(); post({ type: "open", url: tmdb }); };
+  if (r.kind === "Episode") post({ type: "seasons", id: r.id });
+  renderEpisode();
+  $("apply").disabled = false;
+}
+
+// ---- exact episode (TV, this file only)
+const ge = CTX.guess_episode;
+$("fromFileLabel").textContent = ge && ge.episode ? `Use the number in the file name (S${ge.season} - E${ge.episode})` : "Use the number in the file name";
+function renderEpisode() {
+  const show = selected && selected.kind === "Episode" && scope === "file";
+  $("episodeBox").style.display = show ? "" : "none";
+  const manual = !$("fromFile").checked;
+  $("season").disabled = !manual || !seasons;
+  $("episode").disabled = !manual;
+}
+if (!ge || !ge.episode) { $("fromFile").checked = false; $("fromFile").disabled = true; }
+$("fromFile").onchange = renderEpisode;
+$("season").onchange = () => {
+  const s = (seasons || []).find(x => String(x.season) === $("season").value);
+  if (s && s.episodes) $("episode").max = s.episodes;
+};
+window.__seasons = data => {
+  if (!selected || data.id !== selected.id) return;
+  if (data.error) return;
+  seasons = data.seasons || [];
+  $("season").innerHTML = "";
+  for (const s of seasons) {
+    const o = document.createElement("option");
+    o.value = s.season;
+    o.textContent = (s.name || "Season " + s.season) + (s.episodes ? ` (${s.episodes})` : "");
+    $("season").appendChild(o);
+  }
+  const want = ge && ge.season != null ? String(ge.season) : "1";
+  if (seasons.some(s => String(s.season) === want)) $("season").value = want;
+  if (ge && ge.episode) $("episode").value = ge.episode;
+  renderEpisode();
+};
+
+function toast(text) {
+  $("toastText").textContent = text;
+  $("toast").classList.add("show");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => $("toast").classList.remove("show"), 2200);
+}
+
+function apply() {
+  if (!selected) return;
+  const m = { type: "apply", scope, kind: selected.kind, id: selected.id, title: selected.title, year: selected.year };
+  if (selected.kind === "Episode" && scope === "file" && !$("fromFile").checked) {
+    m.season = Number($("season").value); m.episode = Number($("episode").value);
+  }
+  post(m);
+  toast("Saved — updating Discord");
+  setTimeout(() => post({ type: "close" }), 1100);
+}
+$("apply").onclick = apply;
+if (!CTX.override_scope) { $("reset").disabled = true; $("reset").style.opacity = .4; }
+$("reset").onclick = () => {
+  if (!CTX.override_scope) return;
+  post({ type: "reset" });
+  toast("Back to automatic matching");
+  setTimeout(() => post({ type: "close" }), 1100);
+};
+
+window.__results = data => {
+  if (data.query !== undefined && data.query !== lastQuery) return; // stale
+  results = data.error ? { error: data.error } : data.results || [];
+  renderGrid();
+};
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") post({ type: "close" });
+});
+for (const el of CTX.platform === "windows" ? [] : [$("drag"), $("aside")]) {
+  el.addEventListener("mousedown", e => {
+    if (e.button !== 0 || e.target.closest("button, a, input, select, label, .now, .pick")) return;
+    if (e.target === el || e.target.classList.contains("title") || e.target.classList.contains("subtitle")) post({ type: "drag" });
+  });
+}
+
+renderGrid();
+post({ type: "ready" });
+search();
+$("q").focus(); $("q").select();
+</script>
+</body>
+</html>

@@ -1,0 +1,944 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marquee Settings</title>
+<style>
+:root {
+  --bg: #0d0e12;
+  --side: #111318;
+  --panel: #14161b;
+  --raise: #1b1e25;
+  --raise-hi: #23262e;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #eceef2;
+  --muted: #a2a6b0;
+  --dim: #6d717c;
+  --accent: #5865f2;
+  --accent-hi: #6d78f6;
+  --green: #23a55a;
+  --amber: #f0b232;
+  --red: #da373c;
+  --card: #1e1f23;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent-hi); text-decoration: none; cursor: pointer; }
+a:hover { text-decoration: underline; }
+.app { display: grid; grid-template-columns: 210px minmax(0, 1fr); height: 100vh; }
+
+/* ---------- sidebar ---------- */
+nav { background: var(--side); border-right: 1px solid var(--line); padding: 50px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+.brand { display: flex; align-items: center; gap: 9px; padding: 0 10px 16px; font-weight: 650; font-size: 14px; }
+.brand .mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+nav button {
+  border: 0; background: transparent; text-align: left; padding: 7px 10px; border-radius: 7px; color: var(--muted);
+  display: flex; align-items: center; gap: 10px; font-weight: 500; transition: background .12s, color .12s;
+}
+nav button svg { width: 16px; height: 16px; flex: none; opacity: .85; }
+nav button:hover { color: var(--text); background: rgba(255,255,255,.035); }
+nav button.on { color: var(--text); background: var(--raise); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset; }
+nav .dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-hi); }
+nav .grow { flex: 1; }
+.saved { padding: 0 10px; color: var(--dim); font-size: 11.5px; height: 18px; transition: opacity .3s; display: flex; align-items: center; gap: 6px; }
+.saved.err { color: var(--red); }
+
+/* ---------- content ---------- */
+.content { overflow-y: auto; min-width: 0; }
+.content::-webkit-scrollbar { width: 10px; }
+.content::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; border: 3px solid var(--bg); }
+section { display: none; padding: 46px 34px 40px; max-width: 980px; }
+section.on { display: block; }
+h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px; }
+.lead { color: var(--muted); margin: 0 0 24px; max-width: 560px; }
+h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 26px 0 8px; }
+h2:first-child { margin-top: 0; }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.sticky { position: sticky; top: 0; }
+
+.group { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.item { display: flex; align-items: center; gap: 16px; padding: 12px 14px; min-height: 52px; }
+.item + .item { border-top: 1px solid var(--line); }
+.item .txt { flex: 1; min-width: 0; }
+.item .txt b { display: block; font-weight: 550; }
+.item .txt small { display: block; color: var(--dim); font-size: 12px; margin-top: 1px; }
+.item.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.item.col .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+
+input[type=text], input[type=password], input[type=number], input[type=url], select, textarea {
+  background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; outline: none;
+  transition: border-color .15s, box-shadow .15s; user-select: text; -webkit-user-select: text; min-width: 0;
+}
+input:focus, select:focus, textarea:focus { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
+input::placeholder, textarea::placeholder { color: var(--dim); }
+input.mono, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+input.bad { border-color: var(--red); }
+select { padding-right: 26px; }
+.w-sm { width: 110px; } .w-md { width: 220px; } .w-lg { width: 300px; } .w-full { width: 100%; }
+
+/* switch */
+.sw { position: relative; width: 36px; height: 21px; flex: none; }
+.sw input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+.sw span { position: absolute; inset: 0; border-radius: 99px; background: #3a3d45; transition: background .18s; }
+.sw span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .2s cubic-bezier(.3,1.4,.5,1); }
+.sw input:checked + span { background: var(--accent); }
+.sw input:checked + span::after { transform: translateX(15px); }
+.sw input:focus-visible + span { box-shadow: 0 0 0 3px rgba(88,101,242,.35); }
+
+.btn { border: 0; border-radius: 8px; padding: 7px 13px; font-weight: 600; background: var(--raise); box-shadow: 0 0 0 1px var(--line) inset; transition: background .15s, transform .08s, opacity .15s; white-space: nowrap; }
+.btn:hover { background: var(--raise-hi); }
+.btn:active { transform: scale(.98); }
+.btn:disabled { opacity: .45; }
+.btn.primary { background: var(--accent); color: #fff; box-shadow: none; }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.danger:hover { background: rgba(218,55,60,.18); color: #ff8a8d; }
+.btn.icon { padding: 5px 7px; display: inline-grid; place-items: center; }
+.btn.small { padding: 4px 9px; font-size: 12px; }
+.link { color: var(--dim); font-size: 12px; }
+.link:hover { color: var(--text); text-decoration: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 0; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,.05); box-shadow: 0 0 0 1px var(--line) inset; color: var(--muted); font-size: 12px; transition: background .12s, color .12s; }
+.chip:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.chip.on { background: rgba(88,101,242,.22); box-shadow: 0 0 0 1px rgba(88,101,242,.55) inset; color: #fff; }
+.chip.code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border-radius: 9px; background: rgba(0,0,0,.25); border: 1px solid var(--line); min-height: 38px; align-items: center; }
+.tags:focus-within { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 9px; border-radius: 6px; background: var(--raise-hi); font-size: 12px; max-width: 100%; }
+.tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag button { border: 0; background: transparent; color: var(--dim); padding: 0 4px; font-size: 14px; line-height: 1; border-radius: 4px; }
+.tag button:hover { color: var(--text); background: rgba(255,255,255,.08); }
+.tags input { flex: 1; min-width: 160px; border: 0 !important; background: none; box-shadow: none !important; padding: 4px; }
+
+.seg { display: inline-grid; grid-auto-flow: column; padding: 3px; gap: 2px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 9px; }
+.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; color: var(--muted); font-weight: 550; transition: background .15s, color .15s; }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--raise-hi); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice label { display: block; padding: 12px 14px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s; }
+.choice label:hover { border-color: var(--line-strong); }
+.choice input { display: none; }
+.choice label.on { border-color: var(--accent); background: rgba(88,101,242,.08); }
+.choice b { display: block; font-weight: 600; margin-bottom: 2px; }
+.choice small { color: var(--dim); font-size: 12px; }
+
+/* ---------- Discord preview ---------- */
+.plabel { color: var(--muted); font-size: 12px; font-weight: 550; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.dcard { background: var(--card); border-radius: 12px; padding: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 12px 32px rgba(0,0,0,.35); }
+.dcard .head { font-weight: 700; font-size: 12px; margin-bottom: 11px; color: #dbdee1; }
+.dcard .row { display: flex; gap: 12px; align-items: center; }
+.dimg { width: 84px; height: 84px; border-radius: 9px; flex: none; position: relative; background: #2b2d31; }
+.dimg img.large { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; display: block; }
+.dimg img.small { position: absolute; right: -5px; bottom: -5px; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--card); background: var(--card); }
+.dtext { min-width: 0; flex: 1; }
+.dtext .d { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dtext .s { color: #b5bac1; font-size: 12.5px; margin-top: 1px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dtext .t { color: var(--green); font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace; margin-top: 7px; display: flex; align-items: center; gap: 6px; }
+.dbuttons { display: grid; gap: 6px; margin-top: 12px; }
+.dbuttons div { background: #4e5058; border-radius: 4px; padding: 6px 10px; text-align: center; font-weight: 600; font-size: 12.5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dcap { color: var(--dim); font-size: 11.5px; margin-top: 10px; }
+.dcap b { color: var(--muted); font-weight: 550; }
+.dhidden { color: var(--muted); text-align: center; padding: 26px 10px; font-size: 12.5px; }
+
+/* ---------- players ---------- */
+.status { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--dim); }
+.status.good { background: var(--green); box-shadow: 0 0 0 3px rgba(35,165,90,.15); }
+.status.warn { background: var(--amber); box-shadow: 0 0 0 3px rgba(240,178,50,.15); }
+
+/* ---------- buttons list ---------- */
+.blist .item { padding: 9px 12px; min-height: 46px; }
+.blist .num { width: 18px; color: var(--dim); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.blist .item.off .txt { opacity: .5; }
+.blist .moves { display: flex; gap: 2px; }
+.blist .custom { display: grid; grid-template-columns: 150px 1fr; gap: 6px; flex: 1; }
+
+/* ---------- history ---------- */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.stat small { color: var(--dim); font-size: 12px; }
+.stat b { display: block; font-size: 20px; font-weight: 650; margin-top: 2px; letter-spacing: -0.01em; }
+.hbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.hlist .item { gap: 12px; padding: 10px 12px; }
+.hthumb { width: 40px; height: 60px; border-radius: 5px; object-fit: cover; background: var(--raise); flex: none; }
+.htxt { flex: 1; min-width: 0; }
+.htxt b { font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.htxt small { color: var(--dim); font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog { height: 3px; border-radius: 3px; background: rgba(255,255,255,.08); margin-top: 6px; overflow: hidden; max-width: 260px; }
+.prog i { display: block; height: 100%; background: var(--accent-hi); border-radius: 3px; }
+.hacts { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
+.hlist .item:hover .hacts { opacity: 1; }
+.empty { color: var(--dim); text-align: center; padding: 40px 10px; }
+
+/* ---------- about ---------- */
+.about-head { display: flex; gap: 16px; align-items: center; margin-bottom: 22px; }
+.about-head .mark { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 8px 24px rgba(88,101,242,.3); }
+.notes { white-space: pre-wrap; color: var(--muted); font-size: 12px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,.2); border-radius: 8px; padding: 10px 12px; user-select: text; -webkit-user-select: text; }
+
+/* ---------- welcome ---------- */
+.welcome { position: fixed; inset: 0; background: var(--bg); display: none; z-index: 10; }
+.welcome.on { display: grid; place-items: center; }
+.welcome::before { content: ""; position: absolute; inset: 0; background: radial-gradient(80% 60% at 50% 0%, rgba(88,101,242,.18), transparent 70%); pointer-events: none; }
+.wbox { position: relative; width: min(520px, calc(100vw - 48px)); }
+.steps { display: flex; gap: 6px; justify-content: center; margin-bottom: 28px; }
+.steps i { width: 26px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.1); transition: background .25s; }
+.steps i.on { background: var(--accent-hi); }
+.wstep { display: none; animation: rise .35s cubic-bezier(.2,.8,.3,1); }
+.wstep.on { display: block; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.wstep h1 { font-size: 26px; text-align: center; }
+.wstep .lead { text-align: center; margin: 6px auto 24px; }
+.wnav { display: flex; justify-content: space-between; align-items: center; margin-top: 26px; }
+.wbig { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 16px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 10px 30px rgba(88,101,242,.35); }
+.ol { margin: 0 0 14px; padding-left: 20px; color: var(--muted); }
+.ol li { margin: 3px 0; }
+.result { font-size: 12px; margin-top: 8px; min-height: 18px; color: var(--dim); }
+.result.ok { color: var(--green); } .result.err { color: #ff8a8d; }
+
+/* Windows: a normal title bar sits above the page. */
+.windows nav { padding-top: 18px; }
+.windows section { padding-top: 26px; }
+.windows h1 { font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-weight: 600; }
+.windows .btn, .windows .seg button, .windows nav button { border-radius: 5px; }
+.mac-only, .win-only { display: none; }
+.macos .mac-only, .windows .win-only { display: revert; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav id="nav">
+    <div class="brand" id="brand"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></span>Marquee</div>
+    <button data-s="general"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4"/></svg>General</button>
+    <button data-s="card"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="3" width="12.4" height="10" rx="2"/><rect x="4" y="5.3" width="3.4" height="3.4" rx=".8"/><path d="M9 6h3M9 8h2"/></svg>Discord card</button>
+    <button data-s="buttons"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3.5" width="12" height="3.5" rx="1.2"/><rect x="2" y="9" width="12" height="3.5" rx="1.2"/></svg>Buttons</button>
+    <button data-s="privacy"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2v3.6c0 3.2-2.2 5.6-5 6.8-2.8-1.2-5-3.6-5-6.8V3.8z"/></svg>Privacy</button>
+    <button data-s="players"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.6"/><path d="M6.8 5.2v3.6L9.8 7z" fill="currentColor" stroke="none"/><path d="M5 13.5h6"/></svg>Players</button>
+    <button data-s="history"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg>History</button>
+    <button data-s="about"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.8v.1" stroke-linecap="round"/></svg>About<span class="dot" id="updDot" style="display:none"></span></button>
+    <div class="grow"></div>
+    <div class="saved" id="saved"></div>
+  </nav>
+
+  <div class="content" id="content">
+    <!-- ======================= General ======================= -->
+    <section data-s="general">
+      <h1>General</h1>
+      <p class="lead">Connect Marquee to Discord and TMDB, and choose how it starts.</p>
+
+      <h2>Connections</h2>
+      <div class="group">
+        <div class="item col">
+          <div class="head"><div class="txt"><b>Discord Application ID</b><small>Its name is what Discord shows after “Watching”.</small></div><a class="link" data-open="https://discord.com/developers/applications">Developer Portal ↗</a></div>
+          <input type="text" class="mono w-full" data-k="discord_client_id" placeholder="e.g. 1234567890123456789" spellcheck="false">
+        </div>
+        <div class="item col">
+          <div class="head"><div class="txt"><b>TMDB API key</b><small>The v3 key or the v4 read access token both work.</small></div><a class="link" data-open="https://www.themoviedb.org/settings/api">Get a free key ↗</a></div>
+          <div style="display:flex;gap:8px">
+            <input type="password" class="mono" style="flex:1" data-k="tmdb_api_key" id="tmdbKey" placeholder="Paste your key" spellcheck="false">
+            <button class="btn" id="showKey">Show</button>
+            <button class="btn" id="testKey">Test</button>
+          </div>
+          <div class="result" id="tmdbResult"></div>
+        </div>
+        <div class="item">
+          <div class="txt"><b>Metadata language</b><small>Titles and episode names, as a TMDB language code.</small></div>
+          <input type="text" class="w-sm" data-k="language" list="langs" spellcheck="false">
+          <datalist id="langs"><option>en-US</option><option>en-GB</option><option>de-DE</option><option>fr-FR</option><option>es-ES</option><option>es-MX</option><option>it-IT</option><option>pt-BR</option><option>nl-NL</option><option>sv-SE</option><option>pl-PL</option><option>ru-RU</option><option>ja-JP</option><option>ko-KR</option><option>zh-CN</option><option>zh-TW</option></datalist>
+        </div>
+      </div>
+
+      <h2>App</h2>
+      <div class="group">
+        <div class="item"><div class="txt"><b id="loginLabel">Launch at login</b><small>Start Marquee in the background when you sign in.</small></div><label class="sw"><input type="checkbox" id="login"><span></span></label></div>
+        <div class="item"><div class="txt"><b>Check for updates</b><small>Look for a new version once a day.</small></div><label class="sw"><input type="checkbox" data-k="check_updates"><span></span></label></div>
+        <div class="item"><div class="txt"><b>All-lowercase look</b><small>The Discord card, menu and windows in lowercase.</small></div><label class="sw"><input type="checkbox" data-k="lowercase"><span></span></label></div>
+      </div>
+    </section>
+
+    <!-- ======================= Discord card ======================= -->
+    <section data-s="card">
+      <h1>Discord card</h1>
+      <p class="lead">What your profile shows while you watch. Changes appear on Discord right away.</p>
+      <div class="split">
+        <div>
+          <h2>Basics</h2>
+          <div class="group">
+            <div class="item"><div class="txt"><b>Status line</b><small>What follows “Watching” in the member list.</small></div>
+              <select data-k="status_display"><option value="details">The title</option><option value="state">The episode line</option><option value="name">Your app's name</option></select></div>
+            <div class="item"><div class="txt"><b>Default artwork</b><small>Choose Artwork in the menu overrides it per title.</small></div>
+              <select data-k="artwork"><option value="episode">Episode still</option><option value="season">Season poster</option><option value="poster">Show or movie poster</option><option value="backdrop">Backdrop</option></select></div>
+            <div class="item"><div class="txt"><b>Show while paused</b><small>Keep the card up, marked as paused.</small></div><label class="sw"><input type="checkbox" data-k="show_when_paused"><span></span></label></div>
+            <div class="item"><div class="txt"><b>Extra details</b><small>Genres, rating, tagline and air year.</small></div><label class="sw"><input type="checkbox" data-k="show_extras"><span></span></label></div>
+          </div>
+
+          <h2>Text</h2>
+          <div class="seg" id="tplKind" style="margin-bottom:10px"><button data-k="episode" class="on">TV episodes</button><button data-k="movie">Movies</button></div>
+          <div class="group" id="tplGroup"></div>
+          <div style="margin-top:12px">
+            <div class="plabel"><span>Placeholders — click to insert</span></div>
+            <div class="chips" id="placeholders"></div>
+            <p class="lead" style="font-size:12px;margin:10px 0 0;color:var(--dim)">Parts separated by “ · ” disappear when their placeholders are empty. <code class="mono">{tagline|title}</code> uses the title when there's no tagline.</p>
+          </div>
+        </div>
+        <div class="sticky preview"></div>
+      </div>
+    </section>
+
+    <!-- ======================= Buttons ======================= -->
+    <section data-s="buttons">
+      <h1>Buttons</h1>
+      <p class="lead">Links under your card. Discord shows the first two that apply to what you're watching; the title and artwork open the first one.</p>
+      <div class="split">
+        <div>
+          <div class="group" style="margin-bottom:18px">
+            <div class="item"><div class="txt"><b>Show buttons</b><small>Discord shows them to others, not on your own profile.</small></div><label class="sw"><input type="checkbox" data-k="show_buttons"><span></span></label></div>
+          </div>
+          <div class="group blist" id="blist"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+            <button class="btn" id="addCustom">Add your own link</button>
+            <span class="link" style="cursor:default">Use placeholders in the address, like <code class="mono">https://example.com/?q={title}</code></span>
+          </div>
+        </div>
+        <div class="sticky preview"></div>
+      </div>
+    </section>
+
+    <!-- ======================= Privacy ======================= -->
+    <section data-s="privacy">
+      <h1>Privacy</h1>
+      <p class="lead">Keep some things off Discord. “Hide This Title” in the menu adds to the list below.</p>
+      <div class="split">
+        <div>
+          <h2>When something matches</h2>
+          <div class="choice" id="privacyMode">
+            <label data-v="hide"><input type="radio" name="pm"><b>Show nothing</b><small>Your status stays empty.</small></label>
+            <label data-v="generic"><input type="radio" name="pm"><b>Watching something</b><small>No title, artwork or links.</small></label>
+          </div>
+
+          <h2>Titles</h2>
+          <div class="tags" id="hideTitles"><input placeholder="Add a title, or Prefix* for everything starting with it"></div>
+          <h2>Folders</h2>
+          <div class="tags" id="hideFolders"><input class="mono" placeholder="Paste a folder path, e.g. ~/Movies/Private"></div>
+          <h2>Genres</h2>
+          <div class="chips" id="genres"></div>
+
+          <h2>Watch history</h2>
+          <div class="group">
+            <div class="item"><div class="txt"><b>Keep a watch history</b><small>Stored only on this computer. Hidden titles are never recorded.</small></div><label class="sw"><input type="checkbox" data-k="history"><span></span></label></div>
+          </div>
+        </div>
+        <div class="sticky preview"></div>
+      </div>
+    </section>
+
+    <!-- ======================= Players ======================= -->
+    <section data-s="players">
+      <h1>Players</h1>
+      <p class="lead">Marquee follows these players. Setting one up switches on the connection it needs and leaves the rest of its settings alone.</p>
+      <div class="group" id="playerList"></div>
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+        <button class="btn primary" id="setupPlayers">Set Up Players</button>
+        <span class="result" id="setupResult" style="margin:0"></span>
+      </div>
+
+      <h2>Watch for</h2>
+      <div class="group" id="watchers"></div>
+
+      <h2>Connections</h2>
+      <div class="group">
+        <div class="item"><div class="txt"><b>VLC web interface port</b></div><input type="number" class="w-sm" data-k="vlc_port" min="1" max="65535"></div>
+        <div class="item"><div class="txt"><b>VLC web interface password</b><small>Filled in by Set Up Players.</small></div><input type="password" class="w-md mono" data-k="vlc_password"></div>
+        <div class="item win-only"><div class="txt"><b>MPC-HC / MPC-BE web interface port</b></div><input type="number" class="w-sm" data-k="mpc_port" min="1" max="65535"></div>
+      </div>
+      <p class="lead" style="font-size:12px;margin-top:10px;color:var(--dim)">Port and watcher changes apply after Marquee restarts.</p>
+    </section>
+
+    <!-- ======================= History ======================= -->
+    <section data-s="history">
+      <h1>History</h1>
+      <p class="lead">Everything you've watched with Marquee running. Kept on this computer only.</p>
+      <div class="stats">
+        <div class="stat"><small>This week</small><b id="stWeek">–</b></div>
+        <div class="stat"><small>All time</small><b id="stTotal">–</b></div>
+        <div class="stat"><small>Titles</small><b id="stTitles">–</b></div>
+      </div>
+      <div class="hbar">
+        <input type="text" id="hsearch" placeholder="Filter" style="flex:1">
+        <button class="btn danger" id="clearHistory">Clear History</button>
+      </div>
+      <div class="group hlist" id="hlist"></div>
+    </section>
+
+    <!-- ======================= About ======================= -->
+    <section data-s="about">
+      <div class="about-head">
+        <div class="mark"><svg width="24" height="24" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></div>
+        <div><h1 style="margin:0">Marquee</h1><div style="color:var(--muted)">Version <span id="version"></span> · <a data-open="https://github.com/xanaxfather/marquee">GitHub</a></div></div>
+      </div>
+
+      <h2>Updates</h2>
+      <div class="group">
+        <div class="item col" id="updBox">
+          <div class="head"><div class="txt"><b id="updTitle">Check for a new version</b><small id="updSub"></small></div>
+            <div style="display:flex;gap:8px"><button class="btn" id="checkUpdate">Check Now</button><button class="btn primary" id="installUpdate" style="display:none">Install and Restart</button></div></div>
+          <div class="notes" id="updNotes" style="display:none"></div>
+        </div>
+      </div>
+
+      <h2>Troubleshooting</h2>
+      <div class="group">
+        <div class="item"><div class="txt"><b>Config file</b><small class="mono keep-case" id="cfgPath"></small></div><button class="btn" id="openConfig">Open</button><button class="btn" id="reload">Reload</button></div>
+        <div class="item"><div class="txt"><b>Logs</b><small class="mono keep-case" id="logPath"></small></div><button class="btn" id="openLogs">Show</button></div>
+        <div class="item"><div class="txt"><b>Metadata cache</b><small>Forget looked-up titles and fetch them again.</small></div><button class="btn" id="clearCache">Clear</button></div>
+        <div class="item"><div class="txt"><b>Discord connection</b><small id="discordState"></small></div><button class="btn" id="reconnect">Reconnect</button></div>
+        <div class="item"><div class="txt"><b>First-run setup</b><small>Walk through the connections again.</small></div><button class="btn" id="rerunWelcome">Open</button></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ======================= Welcome ======================= -->
+<div class="welcome" id="welcome">
+  <div class="wbox">
+    <div class="steps" id="steps"><i></i><i></i><i></i><i></i><i></i></div>
+
+    <div class="wstep" data-w="0">
+      <div class="wbig"><svg width="26" height="26" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></div>
+      <h1>Welcome to Marquee</h1>
+      <p class="lead">Marquee shows the movie or show you're watching on your Discord profile, with artwork, episode names and progress. Setup takes about two minutes.</p>
+      <div class="wnav"><a class="link" id="skip">Skip setup</a><button class="btn primary" data-next>Get Started</button></div>
+    </div>
+
+    <div class="wstep" data-w="1">
+      <h1>Connect Discord</h1>
+      <p class="lead">Discord needs an application for Marquee to post under. Its name is what appears after “Watching”.</p>
+      <ol class="ol">
+        <li>Open the <a data-open="https://discord.com/developers/applications">Developer Portal</a> and choose <b>New Application</b>.</li>
+        <li>Name it what you want shown, like “TV” or “Movies”.</li>
+        <li>Copy the <b>Application ID</b> and paste it here.</li>
+      </ol>
+      <input type="text" class="mono w-full" data-k="discord_client_id" placeholder="Application ID" spellcheck="false">
+      <div class="wnav"><button class="btn" data-back>Back</button><button class="btn primary" data-next>Continue</button></div>
+    </div>
+
+    <div class="wstep" data-w="2">
+      <h1>Connect TMDB</h1>
+      <p class="lead">The Movie Database identifies your files and supplies artwork. A personal key is free.</p>
+      <ol class="ol">
+        <li>Sign in at <a data-open="https://www.themoviedb.org/settings/api">themoviedb.org/settings/api</a>.</li>
+        <li>Request an API key (choose “Personal use”).</li>
+        <li>Paste the <b>API Key</b> or <b>Read Access Token</b>.</li>
+      </ol>
+      <div style="display:flex;gap:8px"><input type="password" class="mono" style="flex:1" data-k="tmdb_api_key" id="wTmdbKey" placeholder="TMDB key" spellcheck="false"><button class="btn" id="wTestKey">Test</button></div>
+      <div class="result" id="wTmdbResult"></div>
+      <div class="wnav"><button class="btn" data-back>Back</button><button class="btn primary" data-next>Continue</button></div>
+    </div>
+
+    <div class="wstep" data-w="3">
+      <h1>Set up your players</h1>
+      <p class="lead">Marquee switches on the connection each installed player needs. Quit and reopen the player afterwards.</p>
+      <div class="group" id="wPlayers"></div>
+      <div class="result" id="wSetupResult"></div>
+      <div class="wnav"><button class="btn" data-back>Back</button><div style="display:flex;gap:8px"><button class="btn" id="wSetup">Set Up Players</button><button class="btn primary" data-next>Continue</button></div></div>
+    </div>
+
+    <div class="wstep" data-w="4">
+      <h1>You're all set</h1>
+      <p class="lead">Play something and it appears on Discord within a few seconds. Marquee lives in the <span class="mac-only">menu bar</span><span class="win-only">system tray</span>.</p>
+      <div class="group">
+        <div class="item"><div class="txt"><b class="loginText">Launch at login</b></div><label class="sw"><input type="checkbox" id="wLogin"><span></span></label></div>
+        <div class="item"><div class="txt"><b>Check for updates</b></div><label class="sw"><input type="checkbox" data-k="check_updates"><span></span></label></div>
+      </div>
+      <div class="wnav"><button class="btn" data-back>Back</button><button class="btn primary" id="finish">Done</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CTX = /*__CTX__*/null;
+document.documentElement.classList.add(CTX.platform || "macos");
+const $ = id => document.getElementById(id);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const post = m => window.ipc.postMessage(JSON.stringify(m));
+const cfg = JSON.parse(JSON.stringify(CTX.config));
+
+// ------------------------------------------------------------ saving
+let pending = {}, saveTimer = null, previewTimer = null;
+function set(key, value, { now = false } = {}) {
+  cfg[key] = value;
+  pending[key] = value;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, now ? 0 : 500);
+  schedulePreview();
+  if (key === "buttons" || key === "show_buttons") renderButtons();
+}
+function flush() {
+  if (!Object.keys(pending).length) return;
+  post({ type: "save", values: pending });
+  pending = {};
+  $("saved").className = "saved";
+  $("saved").textContent = "Saving…";
+}
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => post({ type: "preview", values: cfg }), 120);
+}
+window.__saved = r => {
+  const el = $("saved");
+  if (r.ok) {
+    el.className = "saved";
+    el.innerHTML = '<svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-4.7" stroke="#23a55a" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> Saved';
+    clearTimeout(el.t); el.t = setTimeout(() => { el.textContent = ""; }, 1800);
+  } else {
+    el.className = "saved err";
+    el.textContent = "Couldn't save: " + (r.error || "unknown error");
+  }
+};
+window.addEventListener("beforeunload", flush);
+
+// Bind simple controls: <input data-k>, <select data-k>, checkboxes.
+for (const el of $$("[data-k]")) {
+  const k = el.dataset.k;
+  if (!(k in cfg)) continue;
+  if (el.type === "checkbox") {
+    el.checked = !!cfg[k];
+    el.onchange = () => { set(k, el.checked); $$(`[data-k="${k}"]`).forEach(o => o !== el && (o.checked = el.checked)); };
+  } else {
+    el.value = cfg[k] ?? "";
+    const commit = () => {
+      let v = el.value;
+      if (el.type === "number") { v = parseInt(v, 10); if (!(v > 0 && v < 65536)) { el.classList.add("bad"); return; } }
+      else v = v.trim();
+      el.classList.remove("bad");
+      if (cfg[k] === v) return;
+      set(k, v);
+      $$(`[data-k="${k}"]`).forEach(o => o !== el && (o.value = v));
+    };
+    el.onchange = commit;
+    if (el.tagName === "INPUT" && el.type !== "number") el.oninput = () => { clearTimeout(el.t); el.t = setTimeout(commit, 600); };
+  }
+}
+for (const a of $$("[data-open]")) a.onclick = e => { e.preventDefault(); post({ type: "open", url: a.dataset.open }); };
+
+// ------------------------------------------------------------ navigation
+function show(section) {
+  if (section === "welcome") { openWelcome(); section = "general"; }
+  if (!$$("section").some(s => s.dataset.s === section)) section = "general";
+  $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.s === section));
+  $$("section").forEach(s => s.classList.toggle("on", s.dataset.s === section));
+  $("content").scrollTop = 0;
+  const host = document.querySelector(`section[data-s="${section}"] .preview`);
+  if (host) host.appendChild(previewEl);
+}
+$$("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
+window.__section = s => show(s);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("welcome").classList.contains("on")) post({ type: "close" });
+  if ((e.metaKey || e.ctrlKey) && e.key === "w") post({ type: "close" });
+});
+// Drag the window by empty areas (macOS has no visible title bar).
+if (CTX.platform !== "windows") {
+  document.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    const t = e.target;
+    if (t.id === "nav" || t.id === "brand" || t.classList.contains("grow") || (t.tagName === "SECTION") || t.tagName === "H1" || t.classList.contains("lead") || t.id === "welcome" || t.classList.contains("wbox")) post({ type: "drag" });
+  });
+}
+
+// ------------------------------------------------------------ General
+const loginText = CTX.platform === "windows" ? "Start with Windows" : "Launch at login";
+$("loginLabel").textContent = loginText;
+$$(".loginText").forEach(e => e.textContent = loginText);
+for (const id of ["login", "wLogin"]) {
+  $(id).checked = !!CTX.login;
+  $(id).onchange = () => post({ type: "login", on: $(id).checked });
+}
+window.__login = on => { $("login").checked = on; $("wLogin").checked = on; };
+function bindReveal(btn, input) {
+  btn.onclick = () => { const hidden = input.type === "password"; input.type = hidden ? "text" : "password"; btn.textContent = hidden ? "Hide" : "Show"; };
+}
+bindReveal($("showKey"), $("tmdbKey"));
+let tmdbTarget = null;
+function testKey(input, out) {
+  const key = input.value.trim();
+  if (!key) { out.className = "result err"; out.textContent = "Paste a key first."; return; }
+  out.className = "result"; out.textContent = "Checking…";
+  tmdbTarget = out;
+  post({ type: "test_tmdb", key });
+}
+$("testKey").onclick = () => testKey($("tmdbKey"), $("tmdbResult"));
+$("wTestKey").onclick = () => testKey($("wTmdbKey"), $("wTmdbResult"));
+window.__tmdbTest = r => {
+  if (!tmdbTarget) return;
+  tmdbTarget.className = "result " + (r.ok ? "ok" : "err");
+  tmdbTarget.textContent = r.ok ? "Key works." : "TMDB said: " + r.error;
+};
+
+// ------------------------------------------------------------ Discord card: templates
+const TPL = {
+  episode: [["episode_details", "Title line"], ["episode_state", "Second line"], ["episode_image_text", "Artwork hover text"]],
+  movie: [["movie_details", "Title line"], ["movie_state", "Second line"], ["movie_image_text", "Artwork hover text"]],
+};
+let tplKind = "episode", lastTpl = null;
+function renderTemplates() {
+  const g = $("tplGroup");
+  g.innerHTML = "";
+  for (const [key, label] of TPL[tplKind]) {
+    const row = document.createElement("div");
+    row.className = "item col";
+    row.innerHTML = `<div class="head"><div class="txt"><b></b></div><a class="link reset">Reset</a></div><input type="text" class="mono w-full" spellcheck="false">`;
+    row.querySelector("b").textContent = label;
+    const input = row.querySelector("input");
+    input.placeholder = CTX.defaults[key];
+    input.value = cfg[key] || "";
+    input.oninput = () => { cfg[key] = input.value; schedulePreview(); clearTimeout(input.t); input.t = setTimeout(() => set(key, input.value), 500); };
+    input.onfocus = () => { lastTpl = input; };
+    row.querySelector(".reset").onclick = () => { input.value = ""; set(key, ""); };
+    g.appendChild(row);
+  }
+  lastTpl = g.querySelector("input");
+  previewKind = tplKind; renderPreview();
+}
+$$("#tplKind button").forEach(b => b.onclick = () => {
+  tplKind = b.dataset.k;
+  $$("#tplKind button").forEach(x => x.classList.toggle("on", x === b));
+  renderTemplates();
+});
+for (const p of CTX.placeholders) {
+  const c = document.createElement("button");
+  c.className = "chip code"; c.textContent = "{" + p + "}";
+  c.onmousedown = e => e.preventDefault(); // keep focus in the field
+  c.onclick = () => {
+    const input = lastTpl; if (!input) return;
+    if (!input.value) input.value = input.placeholder;
+    const s = input.selectionStart ?? input.value.length, e2 = input.selectionEnd ?? s;
+    input.value = input.value.slice(0, s) + c.textContent + input.value.slice(e2);
+    input.focus(); input.selectionStart = input.selectionEnd = s + c.textContent.length;
+    input.oninput();
+  };
+  $("placeholders").appendChild(c);
+}
+
+// ------------------------------------------------------------ preview
+const previewEl = document.createElement("div");
+previewEl.innerHTML = `<div class="plabel"><span>Preview</span><div class="seg" id="pvKind"><button data-k="episode" class="on">Episode</button><button data-k="movie">Movie</button></div></div><div id="pvCard"></div>`;
+let previewKind = "episode", previews = null, tick = 1234;
+previewEl.querySelectorAll("#pvKind button").forEach(b => b.onclick = () => { previewKind = b.dataset.k; renderPreview(); });
+const fmt = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+setInterval(() => { tick++; const t = document.getElementById("pvTime"); if (t) t.textContent = fmt(tick); }, 1000);
+function renderPreview() {
+  previewEl.querySelectorAll("#pvKind button").forEach(x => x.classList.toggle("on", x.dataset.k === previewKind));
+  const host = previewEl.querySelector("#pvCard");
+  const a = previews && previews[previewKind];
+  if (!a) { host.innerHTML = `<div class="dcard"><div class="dhidden">Loading preview…</div></div>`; return; }
+  const app = CTX.app_name || "Marquee";
+  if (a.hidden) {
+    host.innerHTML = `<div class="dcard"><div class="dhidden">Hidden by your privacy settings — nothing is shown on Discord.</div></div>`;
+    return;
+  }
+  const assets = a.assets || {};
+  host.innerHTML = `<div class="dcard"><div class="head"></div><div class="row">
+      <div class="dimg">${assets.large_image ? '<img class="large">' : ""}${assets.small_image ? '<img class="small">' : ""}</div>
+      <div class="dtext"><div class="d"></div><div class="s"></div>
+        <div class="t"><svg width="14" height="11" viewBox="0 0 15 12" fill="currentColor"><rect x="0" y="0" width="15" height="9.5" rx="2"/><rect x="4" y="10.5" width="7" height="1.5" rx=".75"/></svg><span id="pvTime"></span></div></div>
+    </div><div class="dbuttons"></div></div>
+    <div class="dcap"><b>Artwork hover:</b> <span class="lt"></span></div>`;
+  const status = { 0: app, 1: a.state, 2: a.details }[a.status_display_type ?? 2];
+  host.querySelector(".head").textContent = "Watching " + (status || app);
+  if (assets.large_image && /^https:/.test(assets.large_image)) host.querySelector(".large").src = assets.large_image;
+  if (assets.small_image && /^https:/.test(assets.small_image)) host.querySelector(".small").src = assets.small_image;
+  host.querySelector(".d").textContent = a.details;
+  host.querySelector(".s").textContent = a.state;
+  host.querySelector("#pvTime").textContent = fmt(tick);
+  host.querySelector(".lt").textContent = assets.large_text || "—";
+  for (const b of a.buttons || []) { const d = document.createElement("div"); d.textContent = b.label; d.title = b.url; host.querySelector(".dbuttons").appendChild(d); }
+}
+window.__preview = p => { previews = p; renderPreview(); };
+
+// ------------------------------------------------------------ Buttons
+const BUILTIN = Object.fromEntries(CTX.buttons);
+const BTN_NOTE = { imdb: "When TMDB knows the IMDb id", letterboxd: "Movies only", trailer: "YouTube search", wikipedia: "Wikipedia search" };
+function buttonRows() {
+  const rows = (cfg.buttons || []).map(v => ({ v, on: true }));
+  for (const id of Object.keys(BUILTIN)) if (!rows.some(r => r.v.toLowerCase() === id)) rows.push({ v: id, on: false });
+  return rows;
+}
+function saveRows(rows) { set("buttons", rows.filter(r => r.on).map(r => r.v)); }
+function renderButtons() {
+  const list = $("blist");
+  const rows = buttonRows();
+  list.innerHTML = "";
+  let n = 0;
+  rows.forEach((r, i) => {
+    const custom = !(r.v.toLowerCase() in BUILTIN);
+    const item = document.createElement("div");
+    item.className = "item" + (r.on ? "" : " off");
+    const shown = r.on && cfg.show_buttons ? ++n : 0;
+    item.innerHTML = `<span class="num">${shown && shown <= 2 ? shown : ""}</span>` +
+      (custom ? `<div class="custom"><input type="text" placeholder="Label" class="cl"><input type="text" class="mono cu" placeholder="https://…"></div>`
+              : `<div class="txt"><b></b><small></small></div>`) +
+      `<div class="moves"><button class="btn icon up" title="Move up"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 6.5L5 3.5l3 3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button><button class="btn icon down" title="Move down"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5l3-3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button></div>` +
+      (custom ? `<button class="btn icon del" title="Remove">✕</button>` : `<label class="sw"><input type="checkbox"><span></span></label>`);
+    if (custom) {
+      const [label, url] = r.v.split("|").map(s => (s || "").trim());
+      const cl = item.querySelector(".cl"), cu = item.querySelector(".cu");
+      cl.value = label || ""; cu.value = url || "";
+      const commit = () => { rows[i].v = `${cl.value.trim()} | ${cu.value.trim()}`; cu.classList.toggle("bad", !!cu.value && !/^https:\/\//.test(cu.value.trim())); saveRows(rows); };
+      cl.onchange = commit; cu.onchange = commit;
+      item.querySelector(".del").onclick = () => { rows.splice(i, 1); saveRows(rows); };
+    } else {
+      item.querySelector("b").textContent = BUILTIN[r.v.toLowerCase()];
+      item.querySelector("small").textContent = BTN_NOTE[r.v.toLowerCase()] || "";
+      const cb = item.querySelector("input");
+      cb.checked = r.on;
+      cb.onchange = () => {
+        rows[i].on = cb.checked;
+        // Newly enabled buttons go after the enabled ones.
+        const moved = rows.splice(i, 1)[0];
+        const lastOn = rows.map(x => x.on).lastIndexOf(true);
+        rows.splice(cb.checked ? lastOn + 1 : rows.length, 0, moved);
+        saveRows(rows);
+      };
+    }
+    const swap = (a, b) => { if (b < 0 || b >= rows.length || !rows[a].on || !rows[b].on) return; [rows[a], rows[b]] = [rows[b], rows[a]]; saveRows(rows); };
+    item.querySelector(".up").onclick = () => swap(i, i - 1);
+    item.querySelector(".down").onclick = () => swap(i, i + 1);
+    item.querySelector(".up").disabled = !r.on || i === 0;
+    item.querySelector(".down").disabled = !r.on || !(rows[i + 1] && rows[i + 1].on);
+    list.appendChild(item);
+  });
+}
+$("addCustom").onclick = () => {
+  const rows = buttonRows();
+  const lastOn = rows.map(x => x.on).lastIndexOf(true);
+  rows.splice(lastOn + 1, 0, { v: "Search | https://www.google.com/search?q={title}", on: true });
+  saveRows(rows);
+};
+
+// ------------------------------------------------------------ Privacy
+function renderMode() {
+  $$("#privacyMode label").forEach(l => l.classList.toggle("on", l.dataset.v === cfg.privacy_mode));
+}
+$$("#privacyMode label").forEach(l => l.onclick = e => { e.preventDefault(); set("privacy_mode", l.dataset.v); renderMode(); });
+function tagList(box, key, normalize = s => s) {
+  const input = box.querySelector("input");
+  const render = () => {
+    box.querySelectorAll(".tag").forEach(t => t.remove());
+    for (const v of cfg[key] || []) {
+      const t = document.createElement("span");
+      t.className = "tag keep-case";
+      t.innerHTML = `<span></span><button title="Remove">×</button>`;
+      t.firstChild.textContent = v;
+      t.lastChild.onclick = () => { set(key, (cfg[key] || []).filter(x => x !== v)); render(); };
+      box.insertBefore(t, input);
+    }
+  };
+  const add = () => {
+    const v = normalize(input.value.trim());
+    if (!v) return;
+    if (!(cfg[key] || []).includes(v)) set(key, [...(cfg[key] || []), v]);
+    input.value = ""; render();
+  };
+  input.onkeydown = e => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); }
+    if (e.key === "Backspace" && !input.value && (cfg[key] || []).length) { set(key, cfg[key].slice(0, -1)); render(); }
+  };
+  input.onblur = add;
+  box.onclick = e => { if (e.target === box) input.focus(); };
+  render();
+}
+tagList($("hideTitles"), "hide_titles");
+tagList($("hideFolders"), "hide_folders", s => s.replace(/^["']|["']$/g, ""));
+const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Kids", "Music", "Mystery", "News", "Reality", "Romance", "Science Fiction", "Sci-Fi & Fantasy", "Soap", "Talk", "Thriller", "War", "War & Politics", "Western"];
+function renderGenres() {
+  $("genres").innerHTML = "";
+  const on = new Set((cfg.hide_genres || []).map(g => g.toLowerCase()));
+  for (const g of GENRES) {
+    const c = document.createElement("button");
+    c.className = "chip" + (on.has(g.toLowerCase()) ? " on" : "");
+    c.textContent = g;
+    c.onclick = () => {
+      const cur = cfg.hide_genres || [];
+      set("hide_genres", on.has(g.toLowerCase()) ? cur.filter(x => x.toLowerCase() !== g.toLowerCase()) : [...cur, g]);
+      renderGenres();
+    };
+    $("genres").appendChild(c);
+  }
+}
+
+// ------------------------------------------------------------ Players
+function playerRows(host, players) {
+  host.innerHTML = "";
+  const list = (players || []).filter(p => p.installed);
+  if (!list.length) { host.innerHTML = `<div class="item"><div class="txt"><b>No supported players found</b><small>Install IINA, VLC, mpv${CTX.platform === "windows" ? " or MPC-HC" : ""}, then set it up here.</small></div></div>`; }
+  for (const p of list) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `<span class="status ${p.ready ? "good" : "warn"}"></span><div class="txt"><b></b><small>${p.ready ? "Ready" : "Needs setup"}</small></div>`;
+    row.querySelector("b").textContent = p.name;
+    host.appendChild(row);
+  }
+  const missing = (players || []).filter(p => !p.installed).map(p => p.name);
+  if (missing.length) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `<span class="status"></span><div class="txt"><small></small></div>`;
+    row.querySelector("small").textContent = "Not installed: " + missing.join(", ");
+    host.appendChild(row);
+  }
+}
+function renderPlayers(players) { playerRows($("playerList"), players); playerRows($("wPlayers"), players); }
+$("setupPlayers").onclick = () => { $("setupResult").className = "result"; $("setupResult").textContent = "Setting up…"; post({ type: "setup_players" }); };
+$("wSetup").onclick = () => { $("wSetupResult").className = "result"; $("wSetupResult").textContent = "Setting up…"; post({ type: "setup_players" }); };
+window.__players = r => {
+  renderPlayers(r.players);
+  for (const id of ["setupResult", "wSetupResult"]) { $(id).className = "result ok"; $(id).textContent = r.message || ""; }
+};
+const WATCHERS = CTX.platform === "windows"
+  ? [["mpv", "mpv / mpv.net"], ["VLC", "VLC"], ["MPC", "MPC-HC / MPC-BE"], ["SMTC", "Media Player, Movies & TV and other apps that show media controls"], ["Windows", "QuickLook, PotPlayer, KMPlayer, GOM (window titles)"]]
+  : [["IINA", "IINA"], ["mpv", "mpv"], ["VLC", "VLC"]];
+function renderWatchers() {
+  $("watchers").innerHTML = "";
+  const off = new Set((cfg.disabled_players || []).map(s => s.toLowerCase()));
+  for (const [id, label] of WATCHERS) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `<div class="txt"><b></b></div><label class="sw"><input type="checkbox"><span></span></label>`;
+    row.querySelector("b").textContent = label;
+    const cb = row.querySelector("input");
+    cb.checked = !off.has(id.toLowerCase());
+    cb.onchange = () => {
+      const cur = (cfg.disabled_players || []).filter(x => x.toLowerCase() !== id.toLowerCase());
+      set("disabled_players", cb.checked ? cur : [...cur, id]);
+    };
+    $("watchers").appendChild(row);
+  }
+}
+
+// ------------------------------------------------------------ History
+const dur = s => { const m = Math.round(s / 60); if (m < 1) return "0m"; const h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m}m`; };
+const ago = t => {
+  const d = Date.now() / 1000 - t;
+  if (d < 90) return "just now";
+  if (d < 3600) return Math.round(d / 60) + " min ago";
+  if (d < 86400) return Math.round(d / 3600) + " h ago";
+  if (d < 86400 * 7) return Math.round(d / 86400) + (Math.round(d / 86400) === 1 ? " day ago" : " days ago");
+  return new Date(t * 1000).toLocaleDateString();
+};
+let hist = CTX.history || [];
+function renderHistory() {
+  const week = hist.filter(e => e.last_watched >= Date.now() / 1000 - 7 * 86400).reduce((a, e) => a + e.watched, 0);
+  $("stWeek").textContent = dur(week);
+  $("stTotal").textContent = dur(hist.reduce((a, e) => a + e.watched, 0));
+  $("stTitles").textContent = new Set(hist.map(e => e.title)).size;
+  const q = $("hsearch").value.trim().toLowerCase();
+  const list = hist.filter(e => !q || (e.title + " " + (e.episode_title || "")).toLowerCase().includes(q));
+  const host = $("hlist");
+  host.innerHTML = "";
+  if (!list.length) { host.innerHTML = `<div class="empty">${hist.length ? "Nothing matches." : "Nothing yet. Play something and it shows up here."}</div>`; return; }
+  for (const e of list.slice(0, 300)) {
+    const row = document.createElement("div");
+    row.className = "item";
+    const p = e.position != null && e.duration ? Math.min(1, e.position / e.duration) : null;
+    row.innerHTML = `${e.image ? '<img class="hthumb" loading="lazy">' : '<div class="hthumb"></div>'}
+      <div class="htxt"><b></b><small class="sub"></small><small class="when"></small>${p != null ? `<div class="prog"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}</div>
+      <div class="hacts">${e.path ? '<button class="btn small play">Play</button>' : ""}${e.tmdb_url ? '<button class="btn small tmdb">TMDB</button>' : ""}<button class="btn small icon rm" title="Remove from hist">✕</button></div>`;
+    if (e.image && /^https:/.test(e.image)) row.querySelector("img").src = e.image;
+    row.querySelector("b").textContent = e.label ? `${e.title} · ${e.label}` : e.year ? `${e.title} (${e.year})` : e.title;
+    row.querySelector(".sub").textContent = e.episode_title || (e.kind ? "" : "Not identified");
+    row.querySelector(".when").textContent = [ago(e.last_watched), dur(e.watched) + " watched", e.player].filter(Boolean).join(" · ");
+    const play = row.querySelector(".play"); if (play) play.onclick = () => post({ type: "open_file", path: e.path });
+    const tm = row.querySelector(".tmdb"); if (tm) tm.onclick = () => post({ type: "open", url: e.tmdb_url });
+    row.querySelector(".rm").onclick = () => { post({ type: "remove_history", key: e.key }); hist = hist.filter(x => x.key !== e.key); renderHistory(); };
+    host.appendChild(row);
+  }
+}
+$("hsearch").oninput = renderHistory;
+let confirmClear = null;
+$("clearHistory").onclick = () => {
+  if (!hist.length) return;
+  if (!confirmClear) {
+    $("clearHistory").textContent = "Click again to clear everything";
+    confirmClear = setTimeout(() => { confirmClear = null; $("clearHistory").textContent = "Clear History"; }, 3000);
+    return;
+  }
+  clearTimeout(confirmClear); confirmClear = null;
+  $("clearHistory").textContent = "Clear History";
+  post({ type: "clear_history" });
+  hist = []; renderHistory();
+};
+
+// ------------------------------------------------------------ About
+$("version").textContent = CTX.version;
+$("cfgPath").textContent = CTX.config_file;
+$("logPath").textContent = CTX.log_dir;
+$("discordState").textContent = CTX.discord ? "Connected" : "Not connected";
+$("openConfig").onclick = () => post({ type: "open_config" });
+$("reload").onclick = () => post({ type: "reload" });
+$("openLogs").onclick = () => post({ type: "open_logs" });
+$("clearCache").onclick = () => { post({ type: "clear_cache" }); $("clearCache").textContent = "Cleared"; setTimeout(() => $("clearCache").textContent = "Clear", 1500); };
+$("reconnect").onclick = () => post({ type: "reconnect" });
+$("rerunWelcome").onclick = () => openWelcome();
+$("checkUpdate").onclick = () => { $("updSub").textContent = "Checking…"; post({ type: "check_update" }); };
+$("installUpdate").onclick = () => { $("installUpdate").disabled = true; $("installUpdate").textContent = "Downloading…"; post({ type: "install_update" }); };
+window.__update = u => {
+  $("updDot").style.display = u && u.version ? "" : "none";
+  $("installUpdate").style.display = u && u.version ? "" : "none";
+  $("updNotes").style.display = u && u.notes ? "" : "none";
+  if (u && u.version) {
+    $("updTitle").textContent = `Marquee ${u.version} is available`;
+    $("updSub").textContent = u.asset ? "Installs in a few seconds, then Marquee restarts." : "Opens the download page.";
+    $("installUpdate").textContent = u.asset ? "Install and Restart" : "Download";
+    $("updNotes").textContent = u.notes || "";
+  } else if (u && u.error) {
+    $("updTitle").textContent = "Couldn't check for updates";
+    $("updSub").textContent = u.error;
+  } else {
+    $("updTitle").textContent = "You're up to date";
+    $("updSub").textContent = `Marquee ${CTX.version} is the latest version.`;
+  }
+};
+window.__updateFailed = e => { $("installUpdate").disabled = false; $("installUpdate").textContent = "Try Again"; $("updSub").textContent = "Install failed: " + e; };
+if (CTX.update) window.__update(CTX.update);
+
+// ------------------------------------------------------------ Welcome
+let wstep = 0;
+function renderWelcome() {
+  $$(".wstep").forEach(s => s.classList.toggle("on", Number(s.dataset.w) === wstep));
+  $$("#steps i").forEach((d, i) => d.classList.toggle("on", i <= wstep));
+}
+function openWelcome() { wstep = 0; $("welcome").classList.add("on"); renderWelcome(); }
+function closeWelcome() {
+  set("setup_complete", true, { now: true });
+  $("welcome").classList.remove("on");
+}
+$$("[data-next]").forEach(b => b.onclick = () => { flush(); wstep = Math.min(4, wstep + 1); renderWelcome(); });
+$$("[data-back]").forEach(b => b.onclick = () => { wstep = Math.max(0, wstep - 1); renderWelcome(); });
+$("skip").onclick = closeWelcome;
+$("finish").onclick = () => { closeWelcome(); setTimeout(() => post({ type: "close" }), 300); };
+
+// ------------------------------------------------------------ start
+renderTemplates();
+renderButtons();
+renderMode();
+renderGenres();
+renderPlayers(CTX.players);
+renderWatchers();
+renderHistory();
+renderPreview();
+show(CTX.section || "general");
+post({ type: "ready" });
+</script>
+</body>
+</html>

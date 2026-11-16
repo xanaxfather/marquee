@@ -54,7 +54,7 @@ impl EpisodeNo {
 
 /// Database ids written into names by Plex/Jellyfin/Sonarr/Radarr:
 /// `{tmdb-603}`, `[tmdbid-603]`, `{imdb-tt0133093}`, `{tvdb-81189}`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Ids {
     pub tmdb: Option<u64>,
     pub imdb: Option<String>,

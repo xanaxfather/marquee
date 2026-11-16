@@ -1,0 +1,57 @@
+name: Release
+
+# Push a tag like v0.3.0 to build both apps and publish a GitHub release.
+# Marquee's update check downloads marquee-macos.zip / marquee-windows-x64.zip from it.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build app bundle
+        run: ./scripts/bundle.sh
+      - name: Package
+        run: ditto -c -k --keepParent dist/Marquee.app marquee-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: marquee-macos.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release --locked
+      - name: Package
+        shell: pwsh
+        run: Compress-Archive -Path target/release/marquee.exe -DestinationPath marquee-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: marquee-windows-x64.zip
+
+  publish:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" marquee-macos.zip marquee-windows-x64.zip \
+            --repo "$GITHUB_REPOSITORY" --title "Marquee ${GITHUB_REF_NAME#v}" --generate-notes
