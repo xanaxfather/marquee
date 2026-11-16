@@ -128,9 +128,22 @@ fn non_empty(v: &Value) -> Option<String> {
 }
 
 /// Extra spellings worth searching for ("S W A T" → "S.W.A.T.", "&" ↔ "and").
-/// For `S1940E01`-style files the show must have premiered by that year.
+/// For `S1940E01`-style files (and dated episodes) the show must have premiered by that year.
 fn premiere_cap(g: &Guess) -> Option<u16> {
     g.episode.filter(|e| e.is_year_season() && g.year.is_none()).map(|e| e.season as u16)
+}
+
+/// Cache-key suffix so a tagged file never reuses an untagged lookup.
+fn id_key(g: &Guess) -> String {
+    if g.ids.is_empty() {
+        return String::new();
+    }
+    format!(
+        ":id{}/{}/{}",
+        g.ids.tmdb.map(|i| i.to_string()).unwrap_or_default(),
+        g.ids.imdb.as_deref().unwrap_or(""),
+        g.ids.tvdb.map(|i| i.to_string()).unwrap_or_default()
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,7 +273,52 @@ impl Resolver {
         res
     }
 
+    /// `{tmdb-603}` / `{imdb-tt…}` / `{tvdb-…}` tags name the entry outright.
+    fn find_by_id(&self, g: &Guess, tv: bool) -> Result<Option<SearchResult>, TmdbError> {
+        let result = |id: u64, title: String, year: Option<u16>, poster: Option<String>| SearchResult {
+            candidate: matching::Candidate {
+                id,
+                titles: vec![title.clone()],
+                year,
+                vote_count: 0,
+                origin_country: vec![],
+            },
+            title,
+            poster_path: poster,
+        };
+        if let Some(id) = g.ids.tmdb {
+            return Ok(Some(result(id, g.title.clone(), g.year, None)));
+        }
+        let external = match (&g.ids.imdb, g.ids.tvdb) {
+            (Some(imdb), _) => Some((imdb.clone(), "imdb_id")),
+            (None, Some(tvdb)) if tv => Some((tvdb.to_string(), "tvdb_id")),
+            _ => None,
+        };
+        let Some((id, source)) = external else { return Ok(None) };
+        let v = match self.tmdb.get(&format!("/find/{id}"), &[("external_source", source.into())]) {
+            Ok(v) => v,
+            Err(TmdbError::NotFound) => return Ok(None),
+            Err(e) => return Err(e),
+        };
+        let (list, title_key, date_key) =
+            if tv { ("tv_results", "name", "first_air_date") } else { ("movie_results", "title", "release_date") };
+        Ok(v[list].as_array().and_then(|a| a.first()).and_then(|r| {
+            Some(result(
+                r["id"].as_u64()?,
+                r[title_key].as_str().unwrap_or(&g.title).to_string(),
+                tmdb::year_of(&r[date_key]),
+                r["poster_path"].as_str().map(String::from),
+            ))
+        }))
+    }
+
     fn find(&self, g: &Guess, tv: bool) -> Result<Option<SearchResult>, TmdbError> {
+        if !g.ids.is_empty()
+            && let Some(found) = self.find_by_id(g, tv)?
+        {
+            tracing::debug!(id = found.candidate.id, ids = ?g.ids, "matched by id tag");
+            return Ok(Some(found));
+        }
         for q in query_variants(&g.title) {
             let years: Vec<Option<u16>> = match g.year {
                 Some(y) => vec![Some(y), None],
@@ -277,13 +335,42 @@ impl Resolver {
                 {
                     return Ok(Some(results[best.index].clone()));
                 }
+                // Romanised or foreign names ("Sousou no Frieren") are only listed as
+                // alternative titles; check those for the search's top results.
+                let mut extended = Vec::new();
+                for r in results.iter().take(3) {
+                    let mut c = r.candidate.clone();
+                    c.titles.extend(self.alternative_titles(c.id, tv)?);
+                    extended.push(c);
+                }
+                if let Some(best) =
+                    matching::best_capped(&g.title, g.year, g.country.as_deref(), premiere_cap(g), &extended)
+                {
+                    tracing::debug!(query = %g.title, id = extended[best.index].id, "matched by alternative title");
+                    return Ok(Some(results[best.index].clone()));
+                }
             }
         }
         Ok(None)
     }
 
+    fn alternative_titles(&self, id: u64, tv: bool) -> Result<Vec<String>, TmdbError> {
+        let path = format!("/{}/{id}/alternative_titles", if tv { "tv" } else { "movie" });
+        let v = match self.tmdb.get(&path, &[]) {
+            Ok(v) => v,
+            Err(TmdbError::NotFound) => return Ok(vec![]),
+            Err(e) => return Err(e),
+        };
+        let list = if tv { &v["results"] } else { &v["titles"] };
+        Ok(list
+            .as_array()
+            .map(|a| a.iter().filter_map(|t| t["title"].as_str().map(String::from)).take(60).collect())
+            .unwrap_or_default())
+    }
+
     fn resolve_movie(&mut self, g: &Guess) -> Result<Option<Media>, TmdbError> {
-        let key = format!("movie:{}:{}", normalize(&g.title), g.year.map(|y| y.to_string()).unwrap_or_default());
+        let key =
+            format!("movie:{}:{}{}", normalize(&g.title), g.year.map(|y| y.to_string()).unwrap_or_default(), id_key(g));
         match self.cache.get::<Media>(&key) {
             Lookup::Hit(m) => {
                 tracing::debug!(key, "cache hit");
@@ -334,11 +421,12 @@ impl Resolver {
 
     fn show(&mut self, g: &Guess) -> Result<Option<Show>, TmdbError> {
         let key = format!(
-            "tv:{}:{}:{}:{}",
+            "tv:{}:{}:{}:{}{}",
             normalize(&g.title),
             g.year.map(|y| y.to_string()).unwrap_or_default(),
             g.country.as_deref().unwrap_or(""),
-            premiere_cap(g).map(|y| y.to_string()).unwrap_or_default()
+            premiere_cap(g).map(|y| y.to_string()).unwrap_or_default(),
+            id_key(g)
         );
         match self.cache.get::<Show>(&key) {
             Lookup::Hit(s) => return Ok(Some(s)),
@@ -399,15 +487,23 @@ impl Resolver {
     }
 
     fn resolve_episode(&mut self, g: &Guess, partial: &mut bool) -> Result<Option<Media>, TmdbError> {
-        let Some(number) = g.episode else { return Ok(None) };
+        let Some(mut number) = g.episode else { return Ok(None) };
         let Some(show) = self.show(g)? else { return Ok(None) };
 
-        let key = format!("ep:{}:{}:{}", show.id, number.season, number.episode);
+        let key = match (&g.air_date, g.absolute) {
+            (Some(date), _) => format!("epd:{}:{date}", show.id),
+            (None, true) => format!("epa:{}:{}", show.id, number.episode),
+            (None, false) => format!("ep:{}:{}:{}", show.id, number.season, number.episode),
+        };
         let details = match self.cache.get::<EpisodeDetails>(&key) {
             Lookup::Hit(d) => Some(d),
             Lookup::Negative => None,
             Lookup::Miss => {
-                let found = if number.is_year_season() {
+                let found = if let Some(date) = &g.air_date {
+                    self.episode_by_date(&show, date)
+                } else if g.absolute {
+                    self.episode_absolute(&show, number.episode)
+                } else if number.is_year_season() {
                     self.episode_by_year(&show, number, g.episode_title.as_deref())
                 } else {
                     self.episode_direct(&show, number, g.episode_title.as_deref())
@@ -431,7 +527,14 @@ impl Resolver {
                 }
             }
         };
-        let details = details.unwrap_or(EpisodeDetails { at: None, name: None, air_date: None, still: None });
+        let mut details =
+            details.unwrap_or(EpisodeDetails { at: None, name: None, air_date: g.air_date.clone(), still: None });
+        // Dates and absolute numbers aren't real season/episode numbers: show TMDB's.
+        if (g.air_date.is_some() || g.absolute)
+            && let Some((season, episode)) = details.at.take()
+        {
+            number = EpisodeNo { season, episode, last: None };
+        }
         Ok(Some(Media {
             kind: MediaKind::Episode,
             tmdb_id: show.id,
@@ -523,6 +626,67 @@ impl Resolver {
                     return Ok(Some(Self::details(s, e, true)));
                 }
             }
+        }
+        Ok(None)
+    }
+
+    /// Seasons that had started by `year`, latest first.
+    fn seasons_by(show: &Show, year: u16) -> Vec<u32> {
+        let mut v: Vec<u32> = show
+            .seasons
+            .iter()
+            .filter(|(n, start)| *n > 0 && start.is_none_or(|y| y <= year))
+            .map(|(n, _)| *n)
+            .collect();
+        v.sort_unstable_by(|a, b| b.cmp(a));
+        if v.is_empty() {
+            v.push(1);
+        }
+        v
+    }
+
+    /// Daily shows: the episode that aired on `date` ("2024-03-15").
+    fn episode_by_date(&mut self, show: &Show, date: &str) -> Result<Option<EpisodeDetails>, TmdbError> {
+        let Some(year) = date.get(..4).and_then(|y| y.parse::<u16>().ok()) else { return Ok(None) };
+        for s in Self::seasons_by(show, year).into_iter().take(12) {
+            let Some(eps) = self.season_episodes(show.id, s)? else { continue };
+            if let Some(e) = eps.iter().find(|e| e.air_date.as_deref() == Some(date)) {
+                tracing::info!(show = %show.name, date, tmdb_season = s, tmdb_episode = e.number, "matched episode by air date");
+                return Ok(Some(Self::details(s, e, true)));
+            }
+            // Seasons are newest-first: once one starts before the date's year, older ones can't match.
+            if eps.first().and_then(|e| year_of_date(&e.air_date)).is_some_and(|y| y < year) {
+                break;
+            }
+        }
+        Ok(None)
+    }
+
+    /// Anime-style absolute numbers ("One Piece - 1071"). TMDB either keeps
+    /// the absolute number inside later seasons or restarts each season at 1,
+    /// so accept an exact number in a continuing season, else count across seasons.
+    fn episode_absolute(&mut self, show: &Show, n: u32) -> Result<Option<EpisodeDetails>, TmdbError> {
+        let mut seasons: Vec<u32> = show.seasons.iter().map(|(s, _)| *s).filter(|s| *s > 0).collect();
+        seasons.sort_unstable();
+        if seasons.is_empty() {
+            seasons.push(1);
+        }
+        let mut before = 0u32;
+        for s in seasons.into_iter().take(80) {
+            let Some(eps) = self.season_episodes(show.id, s)? else { continue };
+            let continues = eps.first().is_some_and(|f| f.number > 1);
+            if (s == 1 || continues)
+                && let Some(e) = eps.iter().find(|e| e.number == n)
+            {
+                return Ok(Some(Self::details(s, e, true)));
+            }
+            let len = eps.len() as u32;
+            if !continues && n > before && n <= before + len {
+                let e = &eps[(n - before - 1) as usize];
+                tracing::info!(show = %show.name, absolute = n, tmdb_season = s, tmdb_episode = e.number, "mapped absolute episode number");
+                return Ok(Some(Self::details(s, e, true)));
+            }
+            before += len;
         }
         Ok(None)
     }

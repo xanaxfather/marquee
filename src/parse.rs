@@ -36,6 +36,9 @@ impl EpisodeNo {
     }
 
     pub fn label(&self) -> String {
+        if self.is_year_season() && self.episode == 0 {
+            return self.season.to_string(); // dated episode not (yet) resolved
+        }
         if self.is_year_season() {
             return match self.last {
                 Some(l) => format!("{} - E{}–{}", self.season, self.episode, l),
@@ -49,7 +52,22 @@ impl EpisodeNo {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Database ids written into names by Plex/Jellyfin/Sonarr/Radarr:
+/// `{tmdb-603}`, `[tmdbid-603]`, `{imdb-tt0133093}`, `{tvdb-81189}`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Ids {
+    pub tmdb: Option<u64>,
+    pub imdb: Option<String>,
+    pub tvdb: Option<u64>,
+}
+
+impl Ids {
+    pub fn is_empty(&self) -> bool {
+        self.tmdb.is_none() && self.imdb.is_none() && self.tvdb.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Guess {
     pub title: String,
     pub year: Option<u16>,
@@ -57,11 +75,30 @@ pub struct Guess {
     /// Country hint for shows like "The Office US".
     pub country: Option<String>,
     pub episode_title: Option<String>,
+    #[serde(default)]
+    pub ids: Ids,
+    /// The episode number counts from the start of the show (anime style:
+    /// "One Piece - 1071"), not within a season.
+    #[serde(default)]
+    pub absolute: bool,
+    /// Daily shows named by air date: "2024-03-15".
+    #[serde(default)]
+    pub air_date: Option<String>,
 }
 
 impl Guess {
     pub fn is_episode(&self) -> bool {
         self.episode.is_some()
+    }
+
+    /// Episode label for display before/without a TMDB match.
+    pub fn episode_label(&self) -> Option<String> {
+        let ep = self.episode?;
+        Some(match (&self.air_date, self.absolute) {
+            (Some(d), _) => d.clone(),
+            (None, true) => format!("E{}", ep.episode),
+            (None, false) => ep.label(),
+        })
     }
 }
 
@@ -89,9 +126,50 @@ fn re(s: &str) -> Regex {
 }
 
 static RE_SXXEXX: LazyLock<Regex> =
-    LazyLock::new(|| re(r"(?i)\bS(\d{1,2}|(?:19|20)\d{2}) ?[-]? ?E(\d{1,3})(?: ?(?:- ?E?|E)(\d{1,3})\b)?"));
-static RE_SEASON_EPISODE: LazyLock<Regex> =
-    LazyLock::new(|| re(r"(?i)\bSeason ?(\d{1,2})[ ,-]*(?:Episode|Ep) ?(\d{1,3})\b"));
+    LazyLock::new(|| re(r"(?i)\bS(\d{1,2}|(?:19|20)\d{2}) ?[-]? ?EP?(\d{1,3})(?:v\d)?(?: ?(?:- ?E?|E)(\d{1,3})\b)?"));
+/// "Season 1 Episode 2" and its German/French/Spanish/Italian/Portuguese forms.
+static RE_SEASON_EPISODE: LazyLock<Regex> = LazyLock::new(|| {
+    re(
+        r"(?i)\b(?:Season|Series|Staffel|Saison|Temporada|Stagione) ?(\d{1,2})[ ,-]*(?:Episode|Episodio|Episódio|Épisode|Folge|Capitulo|Capítulo|Ep) ?(\d{1,3})\b",
+    )
+});
+/// "{tmdb-603}", "[tmdbid-603]", "{imdb-tt0133093}", "[tvdbid=81189]".
+static RE_ID_TAG: LazyLock<Regex> =
+    LazyLock::new(|| re(r"(?i)[\[{(]\s*(tmdb|imdb|tvdb)(?:id)?\s*[-=: ]\s*(tt\d+|\d+)\s*[\]})]"));
+/// "www.Site.com - " / "[ www.site.org ] - " in front of the real name.
+static RE_SITE_PREFIX: LazyLock<Regex> =
+    LazyLock::new(|| re(r"(?i)^\s*(?:\[\s*)?www\.[\w-]+\.[a-z]{2,6}\s*\]?[\s._–-]+"));
+/// Daily shows: "2024.03.15", "2023-11-02".
+static RE_DATE: LazyLock<Regex> =
+    LazyLock::new(|| re(r"\b((?:19|20)\d{2})[ -](0[1-9]|1[0-2])[ -](0[1-9]|[12]\d|3[01])\b"));
+/// Miniseries: "1of5", "2 of 11".
+static RE_N_OF_M: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)\b(\d{1,2}) ?of ?(\d{1,2})\b"));
+/// "Frieren S2 - 05".
+static RE_S_DASH: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)\bS(\d{1,2}) - (\d{1,3})(?:v\d)?\b"));
+/// "Naruto Episode 135", "Ep 135", "Folge 3".
+static RE_EP_WORD: LazyLock<Regex> = LazyLock::new(|| {
+    re(r"(?i)\b(?:Episode|Episodio|Episódio|Épisode|Folge|Capitulo|Capítulo|Ep) ?(\d{1,4})(?:v\d)?\b")
+});
+/// "Bleach E12", "Show EP03".
+static RE_E_NUM: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)\bEP?(\d{1,4})(?:v\d)?\b"));
+/// "Dragon Ball Z #45".
+static RE_HASH_NUM: LazyLock<Regex> = LazyLock::new(|| re(r"#(\d{1,4})\b"));
+/// "進撃の巨人 第12話".
+static RE_CJK_EP: LazyLock<Regex> = LazyLock::new(|| re(r"第 ?(\d{1,4}) ?[話话集回]"));
+/// "[Group] Show Name - 12", "One Piece - 1071v2".
+static RE_DASH_NUM: LazyLock<Regex> = LazyLock::new(|| re(r"(?:^|\s)- (\d{1,4})(?:v\d)?(?:\s|$)"));
+/// Season named inside an anime title: "Jujutsu Kaisen 2nd Season", "Show Season 2", "Show S2".
+static RE_TITLE_SEASON: LazyLock<Regex> =
+    LazyLock::new(|| re(r"(?i)^(.*\S)\s+(?:(\d)(?:st|nd|rd|th) Season|Season (\d{1,2})|S(\d{1,2}))$"));
+/// "2013 - Under the Skin", "1995 Heat".
+static RE_LEADING_YEAR: LazyLock<Regex> = LazyLock::new(|| re(r"^((?:19|20)\d{2})\s*(-)?\s*(\S.*)$"));
+/// Edition names that aren't part of the title.
+static RE_EDITION: LazyLock<Regex> = LazyLock::new(|| {
+    re(
+        r"(?i)\s+(?:the\s+)?(?:(?:director'?s|final|ultimate|special|collector'?s|theatrical|extended|unrated|(?:\d+th\s+)?anniversary|criterion)\s+(?:cut|edition|version|collection)|remastered|redux|uncut|unrated|extended|imax)$",
+    )
+});
+static RE_GROUP_SUFFIX: LazyLock<Regex> = LazyLock::new(|| re(r"\s+-\w+$"));
 static RE_NXNN: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)\b(\d{1,2})x(\d{2,3})(?:-(\d{2,3}))?\b"));
 static RE_YEAR: LazyLock<Regex> = LazyLock::new(|| re(r"\b((?:19|20)\d{2})\b"));
 static RE_TRAILING_YEAR: LazyLock<Regex> = LazyLock::new(|| re(r"^(.*\S)\s+((?:19|20)\d{2})$"));
@@ -146,6 +224,54 @@ const WEAK_TAGS: &[&str] = &[
     "HDR",
     "x264",
     "x265",
+    "FRENCH",
+    "TRUEFRENCH",
+    "VOSTFR",
+    "GERMAN",
+    "ITALIAN",
+    "SPANISH",
+    "LATINO",
+    "JAPANESE",
+    "KOREAN",
+    "HINDI",
+    "NORDIC",
+    "NORDiC",
+    "ITA",
+    "ENG",
+    "SUBS",
+];
+
+/// Language/audio words that follow an episode number but aren't its title.
+const LANGUAGE_WORDS: &[&str] = &[
+    "french",
+    "truefrench",
+    "vostfr",
+    "german",
+    "italian",
+    "spanish",
+    "latino",
+    "castellano",
+    "english",
+    "japanese",
+    "korean",
+    "hindi",
+    "nordic",
+    "ita",
+    "eng",
+    "ger",
+    "fre",
+    "spa",
+    "jap",
+    "multi",
+    "dual",
+    "audio",
+    "dubbed",
+    "subbed",
+    "subs",
+    "dub",
+    "sub",
+    "end",
+    "final",
 ];
 
 const GENERIC_DIRS: &[&str] = &[
@@ -283,29 +409,216 @@ fn find_episode(s: &str) -> Option<(usize, usize, EpisodeNo)> {
     None
 }
 
-/// Parse a single file or folder name.
-pub fn parse_name(name: &str) -> Guess {
-    let s = clean(strip_video_ext(name));
+/// Pull `{tmdb-603}`-style id tags out of a raw name.
+fn extract_ids(name: &str) -> (String, Ids) {
+    let mut ids = Ids::default();
+    for c in RE_ID_TAG.captures_iter(name) {
+        let value = &c[2];
+        match c[1].to_ascii_lowercase().as_str() {
+            "tmdb" => ids.tmdb = value.parse().ok(),
+            "tvdb" => ids.tvdb = value.parse().ok(),
+            "imdb" if value.starts_with("tt") => ids.imdb = Some(value.to_string()),
+            _ => {}
+        }
+    }
+    (RE_ID_TAG.replace_all(name, " ").into_owned(), ids)
+}
 
+/// Text after an episode marker → episode title, if it is one.
+fn episode_title_from(after: &str) -> Option<String> {
+    let mut t = trim_junk(after);
+    if t.split(' ').next().is_some_and(is_tag) {
+        return None;
+    }
+    t = trim_junk(cut_at_tags(t));
+    let t = RE_GROUP_SUFFIX.replace(t, "");
+    let t = trim_junk(&t);
+    let all_noise = t.split_whitespace().all(|w| LANGUAGE_WORDS.contains(&w.to_lowercase().as_str()));
+    (!t.is_empty() && !all_noise && !is_tag(t)).then(|| t.to_string())
+}
+
+fn strip_editions(title: &str) -> String {
+    let mut t = title.to_string();
+    for _ in 0..2 {
+        let stripped = RE_EDITION.replace(&t, "").into_owned();
+        // "The Final Cut" is a film, not an edition of "The".
+        if matches!(stripped.trim().to_lowercase().as_str(), "" | "the" | "a" | "an") {
+            break;
+        }
+        t = stripped;
+    }
+    trim_junk(&t).to_string()
+}
+
+fn plausible_year(y: u16) -> bool {
+    (1900..=current_year() + 1).contains(&y)
+}
+
+/// Episode markers without a normal SxxEyy: "Show - 12", "Episode 135",
+/// "E12", "#45", "第12話", "S2 - 05". Returns (start, end, season, episode).
+fn find_loose_episode(s: &str) -> Option<(usize, usize, Option<u32>, u32)> {
+    if let Some(c) = RE_S_DASH.captures(s) {
+        let m = c.get(0)?;
+        return Some((m.start(), m.end(), c[1].parse().ok(), c[2].parse().ok()?));
+    }
+    for regex in [&*RE_EP_WORD, &*RE_CJK_EP, &*RE_HASH_NUM, &*RE_E_NUM] {
+        if let Some(c) = regex.captures(s) {
+            let m = c.get(0)?;
+            if m.start() > 0 {
+                return Some((m.start(), m.end(), None, c[1].parse().ok()?));
+            }
+        }
+    }
+    // "Title - 12": only when nothing but tags or " - Episode Title" follows,
+    // and the number isn't a year ("Movie - 2013").
+    for c in RE_DASH_NUM.captures_iter(s) {
+        let m = c.get(0)?;
+        let digits = c.get(1)?;
+        let n: u32 = digits.as_str().parse().ok()?;
+        if m.start() == 0 || (digits.len() == 4 && plausible_year(n as u16)) {
+            continue;
+        }
+        let rest = s[m.end()..].trim_start();
+        let rest_is_noise = rest.is_empty() || rest.starts_with('-') || rest.split(' ').next().is_some_and(is_tag);
+        if rest_is_noise {
+            return Some((m.start(), m.end(), None, n));
+        }
+    }
+    None
+}
+
+/// Every reasonable reading of one file or folder name, best first.
+pub fn parse_candidates(name: &str) -> Vec<Guess> {
+    let (raw, ids) = extract_ids(strip_video_ext(name));
+    let raw = RE_SITE_PREFIX.replace(&raw, "");
+    let s = clean(&raw);
+    let base = Guess { ids, ..Default::default() };
+
+    // 1. SxxEyy, 1x02, "Season 1 Episode 2" (and translations).
     if let Some((start, end, ep)) = find_episode(&s) {
         let (title, year, country) = split_show_title(&s[..start]);
-        let after = trim_junk(cut_at_tags(trim_junk(&s[end..])));
-        let episode_title = (!after.is_empty() && !is_tag(after)).then(|| after.to_string());
-        return Guess { title, year, episode: Some(ep), country, episode_title };
+        let episode_title = episode_title_from(&s[end..]);
+        return vec![Guess { title, year, episode: Some(ep), country, episode_title, ..base }];
     }
 
-    // Movie: the last plausible year preceded by some title text.
-    let max_year = current_year() + 1;
-    let year_match = RE_YEAR
-        .find_iter(&s)
-        .filter(|m| m.start() > 0)
-        .filter(|m| m.as_str().parse::<u16>().is_ok_and(|y| (1900..=max_year).contains(&y)))
-        .last();
-    let (title, year) = match year_match {
-        Some(m) => (trim_junk(cut_at_tags(&s[..m.start()])).to_string(), m.as_str().parse().ok()),
-        None => (trim_junk(cut_at_tags(&s)).to_string(), None),
+    // 2. Daily shows by air date.
+    if let Some(c) = RE_DATE.captures(&s)
+        && let Some(m) = c.get(0).filter(|m| m.start() > 0)
+        && let Ok(year) = c[1].parse::<u16>()
+        && plausible_year(year)
+    {
+        let (title, _, country) = split_show_title(&s[..m.start()]);
+        if !title.is_empty() {
+            return vec![Guess {
+                title,
+                country,
+                // Placeholder until TMDB tells us the real season/episode.
+                episode: Some(EpisodeNo { season: year as u32, episode: 0, last: None }),
+                episode_title: episode_title_from(&s[m.end()..]),
+                air_date: Some(format!("{}-{}-{}", &c[1], &c[2], &c[3])),
+                ..base
+            }];
+        }
+    }
+
+    let movies = movie_candidates(&s, &base);
+    // An id tag names one thing; never apply it to a reading of the other kind.
+    let without_ids = |mut g: Guess| {
+        g.ids = Ids::default();
+        g
     };
-    Guess { title, year, episode: None, country: None, episode_title: None }
+
+    // 3. Miniseries: "1of5".
+    if let Some(c) = RE_N_OF_M.captures(&s)
+        && let Some(m) = c.get(0).filter(|m| m.start() > 0)
+        && let (Ok(n), Ok(total)) = (c[1].parse::<u32>(), c[2].parse::<u32>())
+        && n >= 1
+        && n <= total
+    {
+        let (title, year, country) = split_show_title(&s[..m.start()]);
+        if !title.is_empty() {
+            let ep = Guess {
+                title,
+                year,
+                country,
+                episode: Some(EpisodeNo { season: 1, episode: n, last: None }),
+                episode_title: episode_title_from(&s[m.end()..]),
+                ..base.clone()
+            };
+            return std::iter::once(ep).chain(movies.into_iter().map(without_ids)).collect();
+        }
+    }
+
+    // 4. Anime / absolute numbering.
+    if let Some((start, end, season, episode)) = find_loose_episode(&s) {
+        let (mut title, year, country) = split_show_title(&s[..start]);
+        let mut season = season;
+        if season.is_none()
+            && let Some(c) = RE_TITLE_SEASON.captures(&title)
+        {
+            season = c.get(2).or(c.get(3)).or(c.get(4)).and_then(|m| m.as_str().parse().ok());
+            title = trim_junk(&c[1]).to_string();
+        }
+        if !title.is_empty() && episode > 0 {
+            let ep = Guess {
+                title,
+                year,
+                country,
+                episode: Some(EpisodeNo { season: season.unwrap_or(1), episode, last: None }),
+                episode_title: episode_title_from(&s[end..]),
+                absolute: season.is_none(),
+                ..base.clone()
+            };
+            // "Star Wars Episode 3 … 2005": a year after the marker means a movie.
+            let year_after = RE_YEAR.find(&s[end..]).is_some_and(|m| m.as_str().parse().is_ok_and(plausible_year));
+            return if year_after {
+                movies.into_iter().chain(std::iter::once(without_ids(ep))).collect()
+            } else {
+                std::iter::once(ep).chain(movies.into_iter().map(without_ids)).collect()
+            };
+        }
+    }
+
+    movies
+}
+
+/// Movie readings of an already-cleaned name.
+fn movie_candidates(s: &str, base: &Guess) -> Vec<Guess> {
+    let movie = |title: &str, year: Option<u16>| Guess { title: title.to_string(), year, ..base.clone() };
+    // The last plausible year preceded by some title text.
+    let year_match = RE_YEAR
+        .find_iter(s)
+        .filter(|m| m.start() > 0)
+        .filter(|m| m.as_str().parse::<u16>().is_ok_and(plausible_year))
+        .last();
+    let (full, year) = match year_match {
+        Some(m) => (trim_junk(cut_at_tags(&s[..m.start()])).to_string(), m.as_str().parse().ok()),
+        None => (trim_junk(cut_at_tags(s)).to_string(), None),
+    };
+    let stripped = strip_editions(&full);
+    let mut out = vec![movie(&stripped, year)];
+    if stripped != full {
+        out.push(movie(&full, year)); // "The Final Cut" might be the actual title
+    }
+    // "2013 - Under the Skin" / "(1995) Heat"
+    if year.is_none()
+        && let Some(c) = RE_LEADING_YEAR.captures(s)
+        && let Ok(y) = c[1].parse::<u16>()
+        && plausible_year(y)
+    {
+        let rest = strip_editions(trim_junk(cut_at_tags(&c[3])));
+        if !rest.is_empty() && !is_tag(&rest) {
+            let lead = movie(&rest, Some(y));
+            // An explicit dash makes the intent clear; otherwise "2001 A Space Odyssey" goes first.
+            if c.get(2).is_some() { out.insert(0, lead) } else { out.push(lead) }
+        }
+    }
+    out
+}
+
+/// The best reading of a single file or folder name.
+pub fn parse_name(name: &str) -> Guess {
+    parse_candidates(name).into_iter().next().unwrap_or_default()
 }
 
 fn is_generic_dir(name: &str) -> bool {
@@ -366,7 +679,22 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
         .collect();
 
     let mut out: Vec<Guess> = Vec::new();
-    let mut g = parse_name(file);
+    let mut candidates = parse_candidates(file).into_iter();
+    let mut g = candidates.next().unwrap_or_default();
+    let alternates: Vec<Guess> = candidates.collect();
+
+    // Plex/Jellyfin put the id tag on the folder: "The Matrix (1999) {tmdb-603}/…"
+    let folder_ids = dirs.iter().map(|d| extract_ids(d).1).find(|i| !i.is_empty()).unwrap_or_default();
+    if g.ids.is_empty() {
+        g.ids = folder_ids.clone();
+    }
+    // "Show/Season 2/Show - 03.mkv": the folder supplies the season.
+    if g.absolute
+        && let (Some(ep), Some(season)) = (g.episode.as_mut(), dirs.first().and_then(|d| season_from_dir(d)))
+    {
+        ep.season = season;
+        g.absolute = false;
+    }
 
     if g.episode.is_none() {
         // "Breaking Bad/Season 2/03 - Bit by a Fly.mkv"
@@ -382,6 +710,8 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
                     country,
                     episode: Some(EpisodeNo { season, episode, last: None }),
                     episode_title: (!rest.is_empty()).then(|| rest.to_string()),
+                    ids: folder_ids.clone(),
+                    ..Default::default()
                 });
             }
         }
@@ -404,7 +734,7 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
             year: year.or(g.year),
             country,
             episode: Some(ep),
-            episode_title: g.episode_title.clone(),
+            ..g.clone()
         });
         let file_guess = (!g.title.is_empty()).then(|| g.clone());
         if library_layout {
@@ -415,8 +745,8 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
     } else if out.is_empty() {
         let parent = dirs
             .first()
-            .filter(|d| !is_generic_dir(&clean(d)))
-            .map(|d| parse_name(d))
+            .filter(|d| !is_generic_dir(&clean(&extract_ids(d).0)))
+            .map(|d| Guess { ids: g.ids.clone(), ..parse_name(d) })
             .filter(|pg| pg.episode.is_none() && pg.year.is_some() && !pg.title.is_empty());
         match parent {
             // Scene releases: "Under.the.Skin.2013.1080p.BluRay-GRP/grp-uts-1080p.mkv"
@@ -436,6 +766,13 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
         }
     }
 
+    out.extend(alternates.into_iter().map(|mut a| {
+        if a.ids.is_empty() {
+            a.ids = folder_ids.clone();
+        }
+        a
+    }));
+
     let mut seen = std::collections::HashSet::new();
     out.retain(|g| !g.title.trim().is_empty() && seen.insert((g.title.to_lowercase(), g.year, g.episode)));
     out
@@ -445,13 +782,7 @@ pub fn hypotheses(path: &str) -> Vec<Guess> {
 pub fn display_fallback(path: &str) -> Guess {
     hypotheses(path).into_iter().next().unwrap_or_else(|| {
         let name = Path::new(path).file_name().and_then(|f| f.to_str()).unwrap_or(path);
-        Guess {
-            title: strip_video_ext(name).to_string(),
-            year: None,
-            episode: None,
-            country: None,
-            episode_title: None,
-        }
+        Guess { title: strip_video_ext(name).to_string(), ..Default::default() }
     })
 }
 
@@ -545,6 +876,125 @@ mod tests {
         assert_eq!(g.episode_title.as_deref(), Some("Puss Gets The Boot"));
         assert_eq!(g.episode.unwrap().label(), "1940 - E1");
         assert!(g.year.is_none());
+    }
+
+    fn abs(episode: u32) -> (Option<EpisodeNo>, bool) {
+        (ep(1, episode), true)
+    }
+
+    #[test]
+    fn anime_and_absolute_numbering() {
+        for (name, title, episode) in [
+            ("[SubsPlease] Sousou no Frieren - 12 (1080p) [ABCD1234].mkv", "Sousou no Frieren", 12),
+            ("One Piece - 1071v2 [1080p].mkv", "One Piece", 1071),
+            ("Naruto Episode 135.mkv", "Naruto", 135),
+            ("Naruto Ep. 135 - Title Here.mkv", "Naruto", 135),
+            ("Bleach E12.mkv", "Bleach", 12),
+            ("Dragon Ball Z #45.mkv", "Dragon Ball Z", 45),
+            ("進撃の巨人 第12話.mkv", "進撃の巨人", 12),
+        ] {
+            let g = parse_name(name);
+            assert_eq!((g.title.as_str(), (g.episode, g.absolute)), (title, abs(episode)), "{name}");
+        }
+        // A season in the title or before the dash is a real season, not absolute.
+        let g = parse_name("[Erai-raws] Jujutsu Kaisen 2nd Season - 05 [1080p][Multiple Subtitle].mkv");
+        assert_eq!((g.title.as_str(), g.episode, g.absolute), ("Jujutsu Kaisen", ep(2, 5), false));
+        let g = parse_name("Frieren S2 - 05.mkv");
+        assert_eq!((g.title.as_str(), g.episode, g.absolute), ("Frieren", ep(2, 5), false));
+        // The season folder wins over "absolute".
+        let g = first("/x/Anime/Frieren/Season 2/Frieren - 05.mkv");
+        assert_eq!((g.episode, g.absolute), (ep(2, 5), false));
+        // Not episodes: a year after a dash, or a number that starts a title.
+        assert!(parse_name("Blade Runner - 1982.mkv").episode.is_none());
+        assert!(parse_name("Movie - 12 Angry Men.mkv").episode.is_none());
+    }
+
+    #[test]
+    fn movie_named_like_an_episode_stays_a_movie_first() {
+        let c = parse_candidates("Star Wars Episode 3 Revenge of the Sith 2005 1080p.mkv");
+        assert!(c[0].episode.is_none());
+        assert_eq!(c[0].year, Some(2005));
+        assert!(c.iter().any(|g| g.absolute));
+    }
+
+    #[test]
+    fn dated_and_miniseries() {
+        let g = parse_name("The.Daily.Show.2024.03.14.Guest.Name.1080p.WEB.h264.mkv");
+        assert_eq!(g.title, "The Daily Show");
+        assert_eq!(g.air_date.as_deref(), Some("2024-03-14"));
+        assert_eq!(g.episode_label().as_deref(), Some("2024-03-14"));
+        assert_eq!(parse_name("Jeopardy! 2023-11-02.mp4").air_date.as_deref(), Some("2023-11-02"));
+        // A year followed by non-date numbers is still a movie year.
+        assert!(parse_name("Movie.2019.1080p.mkv").air_date.is_none());
+
+        let g = parse_name("Chernobyl 1of5 1-23-45.mkv");
+        assert_eq!((g.title.as_str(), g.episode, g.absolute), ("Chernobyl", ep(1, 1), false));
+        let g = parse_name("Planet Earth (1 of 11) From Pole to Pole.mkv");
+        assert_eq!((g.episode, g.episode_title.as_deref()), (ep(1, 1), Some("From Pole to Pole")));
+    }
+
+    #[test]
+    fn other_languages_and_ep_spelling() {
+        for (name, title, s, e) in [
+            ("Dark.Staffel.1.Folge.3.German.1080p.mkv", "Dark", 1, 3),
+            ("La Casa de Papel Temporada 1 Capitulo 2.mkv", "La Casa de Papel", 1, 2),
+            ("Lupin.Saison.1.Episode.2.FRENCH.720p.mkv", "Lupin", 1, 2),
+            ("Severance.S01.EP02.mkv", "Severance", 1, 2),
+            ("Show.Name.S01E01v2.mkv", "Show Name", 1, 1),
+        ] {
+            let g = parse_name(name);
+            assert_eq!((g.title.as_str(), g.episode), (title, ep(s, e)), "{name}");
+            assert!(g.episode_title.is_none(), "{name}: {:?}", g.episode_title);
+        }
+    }
+
+    #[test]
+    fn id_tags() {
+        let g = parse_name("The Matrix (1999) {tmdb-603}.mkv");
+        assert_eq!((g.title.as_str(), g.year, g.ids.tmdb), ("The Matrix", Some(1999), Some(603)));
+        assert_eq!(parse_name("Inception [tmdbid-27205].mkv").ids.tmdb, Some(27205));
+        assert_eq!(parse_name("Heat {imdb-tt0113277}.mkv").ids.imdb.as_deref(), Some("tt0113277"));
+        let g = parse_name(
+            "Breaking Bad (2008) {tvdb-81189} - S02E03 - Bit by a Dead Bee [WEBDL-1080p][AAC 2.0][x264]-GRP.mkv",
+        );
+        assert_eq!(
+            (g.title.as_str(), g.year, g.episode, g.ids.tvdb),
+            ("Breaking Bad", Some(2008), ep(2, 3), Some(81189))
+        );
+        assert_eq!(g.episode_title.as_deref(), Some("Bit by a Dead Bee"));
+        // Plex/Jellyfin tag the folder.
+        let g = first("/x/Movies/The Matrix (1999) {tmdb-603}/The Matrix (1999).mkv");
+        assert_eq!(g.ids.tmdb, Some(603));
+        let g = first("/x/TV/Breaking Bad (2008) {tvdb-81189}/Season 02/S02E03.mkv");
+        assert_eq!((g.title.as_str(), g.ids.tvdb), ("Breaking Bad", Some(81189)));
+    }
+
+    #[test]
+    fn movie_variations() {
+        let c = parse_candidates("2013 - Under the Skin.mkv");
+        assert_eq!((c[0].title.as_str(), c[0].year), ("Under the Skin", Some(2013)));
+        let c = parse_candidates("(1995) Heat.mkv");
+        assert!(c.iter().any(|g| g.title == "Heat" && g.year == Some(1995)));
+        // "2001 A Space Odyssey" keeps its number first.
+        assert_eq!(parse_name("2001 A Space Odyssey.mkv").title, "2001 A Space Odyssey");
+
+        let g = parse_name("www.Torrenting.com - Oppenheimer.2023.1080p.BluRay.x264.mkv");
+        assert_eq!((g.title.as_str(), g.year), ("Oppenheimer", Some(2023)));
+        let g = parse_name("[ www.UsaBit.com ] - Gravity 2013 720p.mkv");
+        assert_eq!((g.title.as_str(), g.year), ("Gravity", Some(2013)));
+
+        let c = parse_candidates("Blade.Runner.The.Final.Cut.1982.1080p.mkv");
+        assert_eq!((c[0].title.as_str(), c[0].year), ("Blade Runner", Some(1982)));
+        assert!(c.iter().any(|g| g.title == "Blade Runner The Final Cut"));
+        assert_eq!(parse_name("Aliens.Directors.Cut.1080p.BluRay.mkv").title, "Aliens");
+        assert_eq!(parse_name("Apocalypse Now Redux (1979).mkv").title, "Apocalypse Now");
+        // Edition words inside a title are left alone.
+        assert_eq!(parse_name("Uncut Gems (2019).mkv").title, "Uncut Gems");
+        assert_eq!(parse_name("The Final Cut (2004).mkv").title, "The Final Cut");
+
+        let g = parse_name("Amelie.2001.FRENCH.1080p.BluRay.mkv");
+        assert_eq!((g.title.as_str(), g.year), ("Amelie", Some(2001)));
+        assert_eq!(parse_name("Parasite.KOREAN.1080p.BluRay.mkv").title, "Parasite");
     }
 
     #[test]

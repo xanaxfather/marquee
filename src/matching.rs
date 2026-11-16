@@ -137,9 +137,14 @@ pub fn score(
     let q = normalize(query);
     let year_exact = matches!((year, c.year), (Some(a), Some(b)) if a == b);
     let mut sim: f64 = 0.0;
-    for t in &c.titles {
-        let t = normalize(t);
+    for raw in &c.titles {
+        let t = normalize(raw);
         let mut s = similarity(&q, &t);
+        // "Frieren" for "Frieren: Beyond Journey's End": the name before a subtitle.
+        let before_subtitle = raw.split_once(':').or_else(|| raw.split_once(" - ")).map(|(head, _)| normalize(head));
+        if before_subtitle.is_some_and(|head| head == q) {
+            s = s.max(0.90);
+        }
         if year_exact && (contains_words(&q, &t) || contains_words(&t, &q)) {
             s = s.max(0.80);
         }
@@ -288,6 +293,15 @@ mod tests {
         // Without context the more-voted (2023) wins; an episode from 1940 rules it out.
         assert_eq!(cands[best("Tom and Jerry", None, None, &cands).unwrap().index].id, 1);
         assert_eq!(cands[best_capped("Tom and Jerry", None, None, Some(1940), &cands).unwrap().index].id, 2);
+    }
+
+    #[test]
+    fn name_before_subtitle() {
+        let cands = vec![cand(1, "Frieren: Beyond Journey's End", 2023, 900), cand(2, "Freezing", 2011, 300)];
+        assert_eq!(cands[best("Frieren", None, None, &cands).unwrap().index].id, 1);
+        // An exact title still beats a subtitle match.
+        let cands = vec![cand(1, "Alien: Covenant", 2017, 9000), cand(2, "Alien", 1979, 15000)];
+        assert_eq!(cands[best("Alien", None, None, &cands).unwrap().index].id, 2);
     }
 
     #[test]

@@ -377,13 +377,7 @@ impl<F: Fn(UiEvent)> Core<F> {
                 // Streams (YouTube etc.): use the player's title, no TMDB lookup.
                 self.resolution = Some(Resolution {
                     path: path.clone(),
-                    guess: Guess {
-                        title: String::new(),
-                        year: None,
-                        episode: None,
-                        country: None,
-                        episode_title: None,
-                    },
+                    guess: Guess::default(),
                     media: None,
                     transient: false,
                     error: None,

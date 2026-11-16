@@ -53,7 +53,12 @@ fn media_lines(cfg: &Config, m: &Media) -> Lines {
     }
     match (m.kind, &m.episode) {
         (MediaKind::Episode, Some(ep)) => {
-            let mut state = ep.number.label();
+            // A dated episode TMDB doesn't list keeps its date as the label.
+            let dated = ep.number.is_year_season() && ep.number.episode == 0;
+            let mut state = match (&ep.air_date, dated) {
+                (Some(d), true) => d.clone(),
+                _ => ep.number.label(),
+            };
             if let Some(name) = &ep.name {
                 state = format!("{state} · {name}");
             }
@@ -94,9 +99,9 @@ fn guess_lines(g: &Guess, snap: &Snapshot) -> Lines {
     } else {
         g.title.clone()
     };
-    let state = match (&g.episode, &g.episode_title, g.year) {
-        (Some(ep), Some(name), _) => format!("{} · {name}", ep.label()),
-        (Some(ep), None, _) => ep.label(),
+    let state = match (g.episode_label(), &g.episode_title, g.year) {
+        (Some(ep), Some(name), _) => format!("{ep} · {name}"),
+        (Some(ep), None, _) => ep,
         (None, _, Some(y)) => y.to_string(),
         (None, _, None) if !snap.player.is_empty() => snap.player.clone(),
         (None, _, None) => "Video".to_string(),
@@ -219,8 +224,8 @@ pub fn summary(resolution: Option<&Resolution>) -> String {
         },
         Some(r) => {
             let g = &r.guess;
-            match &g.episode {
-                Some(e) => format!("{} · {} (unmatched)", g.title, e.label()),
+            match g.episode_label() {
+                Some(e) => format!("{} · {e} (unmatched)", g.title),
                 None => format!("{} (unmatched)", with_year(&g.title, g.year)),
             }
         }

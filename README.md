@@ -123,6 +123,13 @@ Marquee builds a ranked list of guesses from the file name and then the folder n
 | `Under.the.Skin.2013.1080p.BluRay-GRP/grp-uts.mkv` | **Under the Skin** (2013), using the release folder |
 | `The.Office.US.S05E14.mkv` | **The Office** (US), not the UK original |
 | `Friends.S01E16E17.mkv` | **Friends**, S1 - E16–17 |
+| `[SubsPlease] Sousou no Frieren - 12 (1080p).mkv` | **Frieren: Beyond Journey's End**, S1 - E12, found through its romanised title |
+| `One Piece - 1071.mkv`, `Naruto Episode 135.mkv` | Absolute episode numbers, mapped onto TMDB's seasons |
+| `Jeopardy! 2023-11-02.mp4` | The episode that aired that day |
+| `Chernobyl 1of5.mkv` | **Chernobyl**, S1 - E1 |
+| `Dark.Staffel.1.Folge.3.mkv` | **Dark**, S1 - E3 (also *Saison/Épisode*, *Temporada/Capítulo*) |
+| `The Matrix (1999) {tmdb-603}.mkv` | Exactly that entry. `{imdb-tt…}` and `{tvdb-…}` tags work too, on the file or its folder |
+| `2013 - Under the Skin.mkv`, `Blade.Runner.The.Final.Cut.1982.mkv` | Year-first names and edition names |
 | `Tom and Jerry - S1940E01 - Puss Gets The Boot.mkv` | **Tom and Jerry** (1940), 1940 - E1. Year-numbered seasons are mapped to TMDB's numbering, and shows that premiered later are ruled out |
 | `Wonder.Woman.1984.1080p.mkv` | **Wonder Woman 1984**, not *Wonder Woman* |
 | `Dune (2021).mkv` | **Dune** (2021); the 1984 film is rejected on the year |
