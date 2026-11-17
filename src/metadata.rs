@@ -948,7 +948,8 @@ impl Resolver {
                 )?;
                 group(
                     "season",
-                    &format!("Season {s}"),
+                    // TMDB files specials as season 0.
+                    &if s == 0 { "Specials".to_string() } else { format!("Season {s}") },
                     "2/3",
                     format!("/tv/{id}/season/{s}/images"),
                     "posters",

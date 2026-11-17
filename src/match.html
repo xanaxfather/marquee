@@ -54,6 +54,10 @@
   --radius-control: 7px; --radius-group: 11px; --radius-pill: 999px;
   --shadow-lift: 0 1px 0 oklch(100% 0 0 / 0.05) inset, 0 8px 24px oklch(5% 0.01 274 / 0.45);
   --shadow-modal: 0 24px 80px oklch(5% 0.01 274 / 0.6);
+  /* Glass: a smoky indigo pane, a faint edge, and a brighter top edge where light catches it. */
+  --glass-fill: oklch(24% 0.035 274 / 0.55);
+  --glass-edge: oklch(100% 0 0 / 0.1);
+  --glass-shine: oklch(100% 0 0 / 0.22);
   color-scheme: dark;
 }
 .windows {
@@ -207,13 +211,25 @@ aside {
 
 .toast {
   position: fixed; left: 50%; bottom: var(--space-lg); z-index: var(--z-modal); display: flex; align-items: center; gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm); border-radius: var(--radius-pill); background: linear-gradient(var(--color-accent-soft), var(--color-accent-soft)), var(--color-paper-3); color: var(--color-ink);
-  font-weight: 600; box-shadow: 0 0 0 1px var(--color-accent-soft), var(--shadow-modal); pointer-events: none;
-  opacity: 0; transform: translate(-50%, 10px); transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm); border-radius: var(--radius-pill);
+  background: var(--glass-fill); color: var(--color-ink); font-weight: 600; letter-spacing: 0.01em; pointer-events: none;
+  box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 0 0 1px var(--glass-edge), var(--shadow-lift);
+  /* Materializes: the blur thickens as the pane rises and grows from 96%; leaving thins it back out the same way. */
+  -webkit-backdrop-filter: blur(0) saturate(100%); backdrop-filter: blur(0) saturate(100%);
+  opacity: 0; transform: translate(-50%, 8px) scale(0.96);
+  transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out),
+    backdrop-filter var(--dur-short) var(--ease-out), -webkit-backdrop-filter var(--dur-short) var(--ease-out);
 }
 .toast svg { color: var(--color-accent); }
 .toast .tick { stroke: var(--color-accent-ink); }
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+/* Reduce Transparency: a solid pane, no blur. Increase Contrast: solid with a defined edge. */
+@media (prefers-reduced-transparency: reduce) {
+  .toast, .toast.show { background: linear-gradient(var(--color-accent-soft), var(--color-accent-soft)), var(--color-paper-3); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .toast, .toast.show { background: var(--color-paper-3); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: inset 0 0 0 1px var(--color-rule-strong), var(--shadow-lift); }
+}
 
 .windows header, .windows aside { padding-top: 28px; }
 
@@ -223,6 +239,8 @@ aside {
   .searchbar { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .toast, .toast.show { transform: translate(-50%, 0); } /* keep the fade and the blur, drop the rise and the scale */
+  .toast { transition-duration: var(--dur-short) !important; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   .card:hover .poster { transform: none; }
 }
