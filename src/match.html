@@ -207,12 +207,12 @@ aside {
 
 .toast {
   position: fixed; left: 50%; bottom: var(--space-lg); z-index: var(--z-modal); display: flex; align-items: center; gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm); border-radius: var(--radius-pill); background: var(--color-ink); color: var(--color-paper);
-  font-weight: 600; box-shadow: var(--shadow-modal); pointer-events: none;
+  padding: var(--space-xs) var(--space-md) var(--space-xs) var(--space-sm); border-radius: var(--radius-pill); background: linear-gradient(var(--color-accent-soft), var(--color-accent-soft)), var(--color-paper-3); color: var(--color-ink);
+  font-weight: 600; box-shadow: 0 0 0 1px var(--color-accent-soft), var(--shadow-modal); pointer-events: none;
   opacity: 0; transform: translate(-50%, 10px); transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
 }
-.toast svg { color: var(--color-success); }
-.toast .tick { stroke: var(--color-paper); }
+.toast svg { color: var(--color-accent); }
+.toast .tick { stroke: var(--color-accent-ink); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 .windows header, .windows aside { padding-top: 28px; }

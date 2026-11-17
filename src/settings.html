@@ -759,8 +759,9 @@ for (const a of $$("[data-open]")) a.onclick = e => { e.preventDefault(); post({
 // ------------------------------------------------------------ navigation
 // Switching categories. Timeline, all starting on the click:
 // old section leaves at once · new section arrives as a wave from the side of travel (heading 12px, then intro and controls 8px, 0/35/60ms, 220ms) ·
-// notch slides to the new row (220ms) · the Discord card glides to its new spot (260ms), or re-seats 20px from the side of travel when the spot is the same (280ms, 40ms in).
+// notch slides to the new row (220ms) · the Discord card glides to its new spot (260ms), or eases 6px from the side of travel when the spot is the same (280ms, in-out).
 const EASE = getComputedStyle(document.documentElement).getPropertyValue("--ease-out").trim() || "ease-out";
+const EASE_IN_OUT = getComputedStyle(document.documentElement).getPropertyValue("--ease-in-out").trim() || "ease-in-out";
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const ORDER = $$("nav button").map(b => b.dataset.s);
 let current = null;
@@ -806,11 +807,16 @@ function show(section) {
   if (Math.abs(x) + Math.abs(y) > 0.5) {
     // Narrow window: the card's spot moved, so it glides there from where it was.
     previewEl.animate({ transform: [`translate(${x}px, ${y}px)`, "none"] }, { id: "carry", duration: 260, easing: EASE });
+  } else if (from) {
+    // Wide window, card already showing: it's the same object in the same spot, so it only eases 6px
+    // from the direction of travel with a slight dip, less than the page around it. An in-out curve
+    // because it stays on screen the whole time: the move starts and lands softly instead of jolting.
+    previewEl.animate({ opacity: [0.75, 1], transform: [`translateY(${6 * down}px)`, "none"] },
+      { id: "carry", duration: 280, easing: EASE_IN_OUT });
   } else {
-    // Wide window: same spot in every section, so it re-seats from the direction of travel
-    // (fading from half if it was already showing, from nothing if it's new), landing just after the heading.
-    previewEl.animate({ opacity: [from ? 0.4 : 0, 1], transform: [`translateY(${20 * down}px)`, "none"] },
-      { id: "carry", duration: 280, delay: 40, easing: EASE, fill: "backwards" });
+    // Arriving from a section without it: a plain entrance, landing just after the heading.
+    previewEl.animate({ opacity: [0, 1], transform: [`translateY(${10 * down}px)`, "none"] },
+      { id: "carry", duration: 240, delay: 40, easing: EASE, fill: "backwards" });
   }
 }
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
