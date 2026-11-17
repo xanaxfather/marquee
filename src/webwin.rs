@@ -19,6 +19,46 @@ pub enum Kind {
     Settings,
 }
 
+/// Windows open right now; Marquee is a regular app (Dock icon) only while any are.
+static OPEN: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+/// macOS: make Marquee the active app so its window becomes key. A menu bar
+/// (accessory) app is refused activation on macOS 14+, and WebKit shows no
+/// hover states or pointer cursors in a window that isn't key, so the pages
+/// looked lifeless until clicked. Becoming a regular app while a window is
+/// open is what lets the activation through.
+#[cfg(target_os = "macos")]
+fn activate_app() {
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send, sel};
+    unsafe {
+        let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+        let _: bool = msg_send![app, setActivationPolicy: 0isize]; // Regular
+        let modern: bool = msg_send![app, respondsToSelector: sel!(activate)];
+        if modern {
+            let _: () = msg_send![app, activate];
+        } else {
+            let _: () = msg_send![app, activateIgnoringOtherApps: true];
+        }
+    }
+}
+
+/// macOS: back to a menu bar app once the last window has closed.
+#[cfg(target_os = "macos")]
+fn release_app() {
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send};
+    unsafe {
+        let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+        let _: bool = msg_send![app, setActivationPolicy: 1isize]; // Accessory
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn activate_app() {}
+#[cfg(not(target_os = "macos"))]
+fn release_app() {}
+
 pub struct WebWindow {
     // Field order matters: the webview must drop before its context and window.
     webview: WebView,
@@ -39,8 +79,30 @@ pub struct Spec<'a> {
     pub ctx: serde_json::Value,
 }
 
+impl Drop for WebWindow {
+    fn drop(&mut self) {
+        if OPEN.fetch_sub(1, std::sync::atomic::Ordering::Relaxed) == 1 {
+            release_app();
+        }
+    }
+}
+
 impl WebWindow {
     pub fn open(
+        el: &EventLoopWindowTarget<UserEvent>,
+        proxy: EventLoopProxy<UserEvent>,
+        spec: Spec,
+    ) -> anyhow::Result<Self> {
+        // Ask now, while the menu click that opened us is still the latest input.
+        activate_app();
+        let built = Self::build(el, proxy, spec);
+        if built.is_err() && OPEN.load(std::sync::atomic::Ordering::Relaxed) == 0 {
+            release_app();
+        }
+        built
+    }
+
+    fn build(
         el: &EventLoopWindowTarget<UserEvent>,
         proxy: EventLoopProxy<UserEvent>,
         spec: Spec,
@@ -108,6 +170,7 @@ impl WebWindow {
             })
             .build(&*window)?;
         tracing::info!(?kind, "window opened");
+        OPEN.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Ok(Self { webview, _context: context, window, kind, ready: false, pending: Vec::new() })
     }
 
@@ -116,6 +179,7 @@ impl WebWindow {
     }
 
     pub fn focus(&self) {
+        activate_app();
         self.window.set_visible(true);
         self.window.set_focus();
     }

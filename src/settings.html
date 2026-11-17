@@ -1,230 +1,443 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Marquee Settings</title>
+<meta name="description" content="Settings for Marquee, which shows what you watch on your Discord profile.">
 <style>
+/* Hallmark · shape: app screen · genre: atmospheric · theme: brand · redesign: full
+ * paper: oklch(16.5% 0.012 274) · accent: oklch(54.5% 0.2 274) · display: ui-serif (New York) · body: system-ui (SF Pro, Segoe UI Variable)
+ * nav: kept sidebar, seven destinations, quiet rail with a notch for the current one · signature: the live Discord card, set on its own stage beside the controls it answers to · states: loading, empty, error, full
+ * axes: dark/roman-serif/chromatic-blurple · posture: settled · contrast: pass · v2.0.0 */
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4 · weakest: S, a settings window looks like every settings window; gave the Discord card its own lit stage and set section titles in the serif so the window reads as Marquee’s */
 :root {
-  --bg: #0d0e12;
-  --side: #111318;
-  --panel: #14161b;
-  --raise: #1b1e25;
-  --raise-hi: #23262e;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-strong: rgba(255, 255, 255, 0.13);
-  --text: #eceef2;
-  --muted: #a2a6b0;
-  --dim: #6d717c;
-  --accent: #5865f2;
-  --accent-hi: #6d78f6;
-  --green: #23a55a;
-  --amber: #f0b232;
-  --red: #da373c;
-  --card: #1e1f23;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px;
+  --text-2xs: 0.6875rem; --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.875rem; --text-lg: 1rem; --text-xl: 1.25rem; --text-2xl: 1.75rem; --text-3xl: 2.25rem;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-micro: 120ms; --dur-short: 220ms;
+  --z-raised: 10; --z-modal: 400;
+
+  --color-paper: oklch(16.5% 0.012 274);
+  --color-paper-2: oklch(19.5% 0.014 274);
+  --color-paper-3: oklch(23.5% 0.016 274);
+  --color-paper-4: oklch(28% 0.018 274);
+  --color-well: oklch(13.5% 0.01 274);
+  --color-ink: oklch(95.5% 0.006 274);
+  --color-ink-2: oklch(80% 0.012 274);
+  --color-muted: oklch(66% 0.016 274);
+  --color-rule: oklch(100% 0 0 / 0.075);
+  --color-rule-strong: oklch(100% 0 0 / 0.14);
+  --color-accent: oklch(54.5% 0.2 274);
+  --color-accent-hi: oklch(50% 0.2 274);
+  --color-rule-hover: oklch(100% 0 0 / 0.22);
+  --color-paper-5: oklch(32% 0.02 274);
+  --color-chip: oklch(12% 0.01 274 / 0.84);
+  --shadow-seg: 0 1px 2px oklch(5% 0.01 274 / 0.4);
+  --shadow-tile: 0 10px 24px oklch(5% 0.01 274 / 0.5);
+  --color-accent-soft: oklch(58.5% 0.2 274 / 0.18);
+  --color-accent-text: oklch(78% 0.12 274);
+  --color-accent-ink: oklch(99% 0.004 274);
+  --color-focus: oklch(76% 0.14 274);
+  --color-success: oklch(72% 0.16 152);
+  --color-warn: oklch(81% 0.14 80);
+  --color-error: oklch(70% 0.17 24);
+  --color-error-soft: oklch(70% 0.17 24 / 0.14);
+  --color-scrim: oklch(10% 0.01 274 / 0.72);
+  --color-discord: oklch(24.5% 0.008 270);
+  --color-discord-line: oklch(100% 0 0 / 0.06);
+  --color-discord-time: oklch(72% 0.16 152);
+
+  --font-display: "New York", ui-serif, Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+
+  --radius-control: 7px; --radius-group: 11px; --radius-pill: 999px;
+  --shadow-lift: 0 1px 0 oklch(100% 0 0 / 0.05) inset, 0 8px 24px oklch(5% 0.01 274 / 0.45);
+  --shadow-modal: 0 24px 80px oklch(5% 0.01 274 / 0.6);
   color-scheme: dark;
 }
-* { box-sizing: border-box; }
-html, body {
-  margin: 0; height: 100%;
-  background: var(--bg); color: var(--text);
-  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default;
+.windows {
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --radius-control: 5px; --radius-group: 8px;
 }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: clip; height: 100%; }
+body {
+  margin: 0; overflow-y: hidden; background: var(--color-paper); color: var(--color-ink);
+  font: var(--text-md)/1.45 var(--font-body); -webkit-font-smoothing: antialiased;
+  user-select: none; -webkit-user-select: none; cursor: default; caret-color: var(--color-accent);
+}
+::selection { background: var(--color-accent-soft); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 button, input, select, textarea { font: inherit; color: inherit; }
-a { color: var(--accent-hi); text-decoration: none; cursor: pointer; }
-a:hover { text-decoration: underline; }
-.app { display: grid; grid-template-columns: 210px minmax(0, 1fr); height: 100vh; }
+a { color: var(--color-accent-text); text-decoration: underline; text-decoration-color: var(--color-accent-soft); text-underline-offset: 0.18em; cursor: pointer; }
+a:hover { text-decoration-color: currentColor; }
+p { margin: 0; text-wrap: pretty; }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-paper-4); border-radius: var(--radius-pill); border: 3px solid var(--color-paper); }
+::-webkit-scrollbar-track { background: transparent; }
 
-/* ---------- sidebar ---------- */
-nav { background: var(--side); border-right: 1px solid var(--line); padding: 50px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
-.brand { display: flex; align-items: center; gap: 9px; padding: 0 10px 16px; font-weight: 650; font-size: 14px; }
-.brand .mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+/* ---------- shell ---------- */
+.app { display: grid; grid-template-columns: 216px minmax(0, 1fr); height: 100vh; }
+
+nav {
+  position: relative; display: flex; flex-direction: column; gap: var(--space-3xs);
+  padding: 52px var(--space-sm) var(--space-md);
+  background: var(--color-well); border-right: 1px solid var(--color-rule);
+}
+.brand {
+  display: flex; align-items: center; gap: var(--space-sm);
+  padding: 0 var(--space-xs) var(--space-lg); font-weight: 650; font-size: var(--text-lg); letter-spacing: -0.01em;
+}
+.mark {
+  display: grid; place-items: center; width: 26px; height: 26px; flex: none;
+  border-radius: 7px; background: var(--color-accent); color: var(--color-accent-ink);
+}
+.mark svg { width: 46%; height: 46%; }
 nav button {
-  border: 0; background: transparent; text-align: left; padding: 7px 10px; border-radius: 7px; color: var(--muted);
-  display: flex; align-items: center; gap: 10px; font-weight: 500; transition: background .12s, color .12s;
+  position: relative; display: flex; align-items: center; gap: var(--space-sm);
+  min-height: 32px; padding: 0 var(--space-xs); border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--color-muted); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
 }
-nav button svg { width: 16px; height: 16px; flex: none; opacity: .85; }
-nav button:hover { color: var(--text); background: rgba(255,255,255,.035); }
-nav button.on { color: var(--text); background: var(--raise); box-shadow: 0 1px 0 rgba(255,255,255,.05) inset; }
-nav .dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-hi); }
-nav .grow { flex: 1; }
-.saved { padding: 0 10px; color: var(--dim); font-size: 11.5px; height: 18px; transition: opacity .3s; display: flex; align-items: center; gap: 6px; }
-.saved.err { color: var(--red); }
+nav button svg { width: 16px; height: 16px; flex: none; }
+nav button:hover { background: var(--color-paper-2); color: var(--color-ink-2); }
+nav button:active { background: var(--color-paper-3); transform: scale(0.98); }
+nav button.on { background: var(--color-paper-3); color: var(--color-ink); }
+/* One notch for the whole rail: it slides to the current row instead of jumping. */
+.navmark {
+  position: absolute; left: 0; top: 0; width: 3px; height: 16px; border-radius: 0 3px 3px 0;
+  background: var(--color-accent); pointer-events: none; opacity: 0;
+  transition: transform var(--dur-short) var(--ease-out);
+}
+.navmark.ready { opacity: 1; }
+nav button.on svg { color: var(--color-accent-text); }
+.dot {
+  margin-left: auto; padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-pill);
+  background: var(--color-accent-soft); color: var(--color-accent-text); font-size: var(--text-2xs); font-weight: 600; line-height: 16px;
+}
+.dot::after { content: "Update"; }
+.grow { flex: 1; }
+.saved { display: flex; align-items: center; gap: var(--space-xs); min-height: 20px; padding: 0 var(--space-xs); color: var(--color-muted); font-size: var(--text-xs); }
+.saved svg { color: var(--color-success); }
+.saved.err { color: var(--color-error); }
+/* Status line: fades in and out instead of popping; the check wipes in left to right once per run of saves. */
+.saved { transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out); }
+/* Leaving mirrors arriving: the check wipes back the way it drew, the line sinks and fades. */
+/* Timed, not a reply to a click, so it takes an in-out curve: the change spreads over the whole exit instead of landing in the first frames. */
+.js .saved.gone { opacity: 0; transform: translateY(4px); transition-duration: 320ms; transition-timing-function: var(--ease-in-out); }
+.saved svg { clip-path: inset(0 0 0 0); transition: clip-path var(--dur-short) var(--ease-out); }
+.js .saved.gone svg { clip-path: inset(0 100% 0 0); transition-duration: 240ms; transition-timing-function: var(--ease-in-out); }
+@starting-style { .saved svg { clip-path: inset(0 100% 0 0); } }
 
-/* ---------- content ---------- */
-.content { overflow-y: auto; min-width: 0; }
-.content::-webkit-scrollbar { width: 10px; }
-.content::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 10px; border: 3px solid var(--bg); }
-section { display: none; padding: 46px 34px 40px; max-width: 980px; }
+.content { overflow-y: auto; overscroll-behavior: contain; scroll-padding-top: var(--space-lg); }
+section { display: none; max-width: 920px; padding: 48px 32px var(--space-2xl); }
 section.on { display: block; }
-h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px; }
-.lead { color: var(--muted); margin: 0 0 24px; max-width: 560px; }
-h2 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 26px 0 8px; }
-h2:first-child { margin-top: 0; }
-.split { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
-.sticky { position: sticky; top: 0; }
 
-.group { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.item { display: flex; align-items: center; gap: 16px; padding: 12px 14px; min-height: 52px; }
-.item + .item { border-top: 1px solid var(--line); }
-.item .txt { flex: 1; min-width: 0; }
-.item .txt b { display: block; font-weight: 550; }
-.item .txt small { display: block; color: var(--dim); font-size: 12px; margin-top: 1px; }
-.item.col { flex-direction: column; align-items: stretch; gap: 8px; }
-.item.col .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-
-input[type=text], input[type=password], input[type=number], input[type=url], select, textarea {
-  background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; outline: none;
-  transition: border-color .15s, box-shadow .15s; user-select: text; -webkit-user-select: text; min-width: 0;
+h1 {
+  margin: 0 0 var(--space-xs); max-width: 24ch; font-family: var(--font-display); font-weight: 500;
+  font-size: var(--text-3xl); line-height: 1.08; letter-spacing: -0.015em;
+  overflow-wrap: break-word; min-width: 0; text-wrap: balance;
 }
-input:focus, select:focus, textarea:focus { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
-input::placeholder, textarea::placeholder { color: var(--dim); }
-input.mono, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
-input.bad { border-color: var(--red); }
-select { padding-right: 26px; }
+.windows h1 { font-weight: 600; font-size: var(--text-2xl); letter-spacing: -0.01em; }
+.lead { max-width: 60ch; margin: 0 0 var(--space-xl); color: var(--color-muted); font-size: var(--text-md); line-height: 1.5; }
+.lead.note { margin: var(--space-sm) 0 0; font-size: var(--text-sm); }
+h2 {
+  margin: var(--space-xl) 0 var(--space-sm); font-size: var(--text-md); font-weight: 600; color: var(--color-ink);
+  overflow-wrap: break-word; min-width: 0;
+}
+.lead + h2, .split > div > h2:first-child { margin-top: 0; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) 288px; gap: var(--space-lg); align-items: start; }
+.sticky { position: sticky; top: var(--space-lg); }
+
+/* ---------- groups and rows ---------- */
+.group { border: 1px solid var(--color-rule); border-radius: var(--radius-group); background: var(--color-paper-2); overflow: hidden; }
+.group.spaced { margin-bottom: var(--space-lg); }
+.item {
+  display: flex; align-items: center; gap: var(--space-sm);
+  min-height: 56px; padding: var(--space-sm) var(--space-md);
+}
+.item + .item { border-top: 1px solid var(--color-rule); }
+.txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3xs); }
+.txt b { font-weight: 550; overflow-wrap: break-word; }
+.txt small { color: var(--color-muted); font-size: var(--text-sm); line-height: 1.4; overflow-wrap: anywhere; }
+.item.col { flex-direction: column; align-items: stretch; gap: var(--space-sm); padding-block: var(--space-sm); }
+.head { display: flex; align-items: flex-start; gap: var(--space-sm); }
+.head .link { margin-top: var(--space-3xs); font-size: var(--text-sm); white-space: nowrap; }
+.inline { display: flex; gap: var(--space-xs); align-items: center; }
+.inline > input { flex: 1; min-width: 0; }
+
+/* ---------- fields ---------- */
+input[type=text], input[type=password], input[type=number], input[type=url], input:not([type]), select, textarea {
+  min-height: 32px; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--color-rule-strong); border-radius: var(--radius-control);
+  background: var(--color-well); color: var(--color-ink); outline: none; user-select: text; -webkit-user-select: text;
+  transition: border-color var(--dur-micro) var(--ease-out);
+}
+input::placeholder { color: var(--color-muted); opacity: 0.75; }
+input:hover, select:hover { border-color: var(--color-rule-hover); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+input:disabled, select:disabled { background: var(--color-paper-2); color: var(--color-muted); cursor: not-allowed; }
+select {
+  appearance: none; -webkit-appearance: none; padding-right: 32px; cursor: pointer; min-width: 180px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--color-muted) 50%), linear-gradient(-45deg, transparent 50%, var(--color-muted) 50%);
+  background-size: 5px 5px; background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-repeat: no-repeat;
+}
+.bad, input.bad { border-color: var(--color-error) !important; background-color: var(--color-error-soft) !important; }
 .w-sm { width: 110px; } .w-md { width: 220px; } .w-lg { width: 300px; } .w-full { width: 100%; }
+input[type=number] { font-variant-numeric: tabular-nums; }
 
-/* switch */
-.sw { position: relative; width: 36px; height: 21px; flex: none; }
-.sw input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
-.sw span { position: absolute; inset: 0; border-radius: 99px; background: #3a3d45; transition: background .18s; }
-.sw span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .2s cubic-bezier(.3,1.4,.5,1); }
-.sw input:checked + span { background: var(--accent); }
-.sw input:checked + span::after { transform: translateX(15px); }
-.sw input:focus-visible + span { box-shadow: 0 0 0 3px rgba(88,101,242,.35); }
+/* ---------- switch ---------- */
+.sw { position: relative; flex: none; width: 36px; height: 22px; cursor: pointer; }
+.sw input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.sw span {
+  position: absolute; inset: 0; border-radius: var(--radius-pill); background: var(--color-paper-4);
+  box-shadow: inset 0 0 0 1px var(--color-rule-strong);
+  transition: background-color var(--dur-short) var(--ease-out);
+}
+.sw span::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--color-ink); transition: transform var(--dur-short) var(--ease-out);
+}
+.sw:hover span { background: var(--color-paper-5); }
+.sw input:checked + span { background: var(--color-accent); box-shadow: none; }
+.sw input:checked + span::after { transform: translateX(14px); background: var(--color-accent-ink); }
+.sw input:active + span::after { transform: scaleX(1.15); }
+.sw input:checked:active + span::after { transform: translateX(12px) scaleX(1.15); }
+.sw input:focus-visible + span { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.sw input:disabled { cursor: not-allowed; }
+.sw input:disabled + span { background: var(--color-paper-3); box-shadow: inset 0 0 0 1px var(--color-rule); }
+.sw input:disabled + span::after { background: var(--color-muted); }
 
-.btn { border: 0; border-radius: 8px; padding: 7px 13px; font-weight: 600; background: var(--raise); box-shadow: 0 0 0 1px var(--line) inset; transition: background .15s, transform .08s, opacity .15s; white-space: nowrap; }
-.btn:hover { background: var(--raise-hi); }
-.btn:active { transform: scale(.98); }
-.btn:disabled { opacity: .45; }
-.btn.primary { background: var(--accent); color: #fff; box-shadow: none; }
-.btn.primary:hover { background: var(--accent-hi); }
-.btn.danger:hover { background: rgba(218,55,60,.18); color: #ff8a8d; }
-.btn.icon { padding: 5px 7px; display: inline-grid; place-items: center; }
-.btn.small { padding: 4px 9px; font-size: 12px; }
-.link { color: var(--dim); font-size: 12px; }
-.link:hover { color: var(--text); text-decoration: none; }
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); flex: none;
+  min-height: 32px; padding: 0 var(--space-sm); border: 1px solid var(--color-rule-strong); border-radius: var(--radius-control);
+  background: var(--color-paper-3); color: var(--color-ink); font-weight: 550; white-space: nowrap; cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+.btn:hover { background: var(--color-paper-4); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled, .btn:disabled:hover { background: var(--color-paper-2); border-color: var(--color-rule); color: var(--color-muted); cursor: not-allowed; transform: none; }
+.btn.primary { background: var(--color-accent); border-color: transparent; color: var(--color-accent-ink); }
+.btn.primary:hover { background: var(--color-accent-hi); }
+.btn.danger { color: var(--color-error); }
+.btn.danger:hover { background: var(--color-error-soft); border-color: var(--color-error); }
+.btn.icon { width: 28px; min-height: 28px; padding: 0; color: var(--color-muted); background: transparent; border-color: transparent; }
+.btn.icon:hover { color: var(--color-ink); background: var(--color-paper-4); }
+.btn.small { min-height: 26px; padding: 0 var(--space-sm); font-size: var(--text-sm); }
+.btn.small.icon { width: 26px; padding: 0; }
+.link { color: var(--color-accent-text); text-decoration: underline; text-decoration-color: var(--color-accent-soft); text-underline-offset: 0.18em; cursor: pointer; }
+.link:hover { text-decoration-color: currentColor; }
+.hint { color: var(--color-muted); font-size: var(--text-sm); }
+.placeholders { margin-top: var(--space-md); }
 
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { border: 0; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,.05); box-shadow: 0 0 0 1px var(--line) inset; color: var(--muted); font-size: 12px; transition: background .12s, color .12s; }
-.chip:hover { color: var(--text); background: rgba(255,255,255,.08); }
-.chip.on { background: rgba(88,101,242,.22); box-shadow: 0 0 0 1px rgba(88,101,242,.55) inset; color: #fff; }
-.chip.code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; }
+/* ---------- chips, tags, segments, choices ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.chip {
+  min-height: 28px; padding: 0 var(--space-sm); border: 1px solid var(--color-rule-strong); border-radius: var(--radius-pill);
+  background: transparent; color: var(--color-ink-2); font-size: var(--text-sm); cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+.chip:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.chip:active { background: var(--color-paper-4); transform: scale(0.96); }
+.chip.on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-ink); }
+.chip.code { font-family: var(--font-mono); font-size: var(--text-xs); border-radius: var(--radius-control); padding: 0 var(--space-xs); min-height: 26px; }
 
-.tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border-radius: 9px; background: rgba(0,0,0,.25); border: 1px solid var(--line); min-height: 38px; align-items: center; }
-.tags:focus-within { border-color: rgba(88,101,242,.7); box-shadow: 0 0 0 3px rgba(88,101,242,.18); }
-.tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 9px; border-radius: 6px; background: var(--raise-hi); font-size: 12px; max-width: 100%; }
-.tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tag button { border: 0; background: transparent; color: var(--dim); padding: 0 4px; font-size: 14px; line-height: 1; border-radius: 4px; }
-.tag button:hover { color: var(--text); background: rgba(255,255,255,.08); }
-.tags input { flex: 1; min-width: 160px; border: 0 !important; background: none; box-shadow: none !important; padding: 4px; }
+.tags {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs);
+  min-height: 44px; padding: var(--space-xs); border: 1px solid var(--color-rule-strong); border-radius: var(--radius-group);
+  background: var(--color-well); cursor: text;
+}
+.tags:focus-within { outline: 2px solid var(--color-focus); outline-offset: -1px; }
+.tag {
+  display: inline-flex; align-items: center; gap: var(--space-3xs); max-width: 100%;
+  min-height: 28px; padding: 0 var(--space-3xs) 0 var(--space-sm); border-radius: var(--radius-control); background: var(--color-paper-3); font-size: var(--text-sm);
+}
+.tag > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag button {
+  display: grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--color-muted); cursor: pointer;
+}
+.tag button { transition: transform var(--dur-micro) var(--ease-out); }
+.tag button:active { transform: scale(0.88); }
+.tag button:hover { background: var(--color-paper-4); color: var(--color-ink); }
+.tags input { flex: 1; min-width: 200px; min-height: 30px; border: 0 !important; outline: none !important; background: transparent; padding: 0 var(--space-xs); }
 
-.seg { display: inline-grid; grid-auto-flow: column; padding: 3px; gap: 2px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 9px; }
-.seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 6px; color: var(--muted); font-weight: 550; transition: background .15s, color .15s; }
-.seg button:hover { color: var(--text); }
-.seg button.on { background: var(--raise-hi); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.seg {
+  display: inline-flex; gap: var(--space-3xs); padding: var(--space-2xs); border-radius: calc(var(--radius-control) + 3px);
+  background: var(--color-well); border: 1px solid var(--color-rule);
+}
+.seg button {
+  min-height: 26px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--color-muted); font-size: var(--text-sm); font-weight: 550; cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+.seg button:hover { color: var(--color-ink); }
+.seg button:active { transform: scale(0.96); }
+.seg button.on { background: var(--color-paper-4); color: var(--color-ink); box-shadow: var(--shadow-seg); }
+.seg.under { margin-bottom: var(--space-sm); }
 
-.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.choice label { display: block; padding: 12px 14px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s; }
-.choice label:hover { border-color: var(--line-strong); }
-.choice input { display: none; }
-.choice label.on { border-color: var(--accent); background: rgba(88,101,242,.08); }
-.choice b { display: block; font-weight: 600; margin-bottom: 2px; }
-.choice small { color: var(--dim); font-size: 12px; }
+.choice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.choice label {
+  position: relative; display: flex; flex-direction: column; gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md) var(--space-sm) 44px; border: 1px solid var(--color-rule-strong); border-radius: var(--radius-group);
+  background: var(--color-paper-2); cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
+}
+.choice label:active { transform: scale(0.985); }
+.choice label::before {
+  content: ""; position: absolute; left: 16px; top: 16px; width: 16px; height: 16px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--color-muted); transition: box-shadow var(--dur-micro) var(--ease-out);
+}
+.choice label:hover { border-color: var(--color-rule-hover); }
+.choice label.on { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.choice label.on::before { box-shadow: inset 0 0 0 5px var(--color-accent), inset 0 0 0 16px var(--color-accent-ink); }
+.choice label:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.choice input { position: absolute; opacity: 0; pointer-events: none; }
+.choice b { font-weight: 600; }
+.choice small { color: var(--color-muted); font-size: var(--text-sm); }
 
-/* ---------- Discord preview ---------- */
-.plabel { color: var(--muted); font-size: 12px; font-weight: 550; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-.dcard { background: var(--card); border-radius: 12px; padding: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.05), 0 12px 32px rgba(0,0,0,.35); }
-.dcard .head { font-weight: 700; font-size: 12px; margin-bottom: 11px; color: #dbdee1; }
-.dcard .row { display: flex; gap: 12px; align-items: center; }
-.dimg { width: 84px; height: 84px; border-radius: 9px; flex: none; position: relative; background: #2b2d31; }
-.dimg img.large { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; display: block; }
-.dimg img.small { position: absolute; right: -5px; bottom: -5px; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--card); background: var(--card); }
-.dtext { min-width: 0; flex: 1; }
-.dtext .d { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dtext .s { color: #b5bac1; font-size: 12.5px; margin-top: 1px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.dtext .t { color: var(--green); font: 600 12px/1 ui-monospace, "SF Mono", Menlo, monospace; margin-top: 7px; display: flex; align-items: center; gap: 6px; }
-.dbuttons { display: grid; gap: 6px; margin-top: 12px; }
-.dbuttons div { background: #4e5058; border-radius: 4px; padding: 6px 10px; text-align: center; font-weight: 600; font-size: 12.5px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dcap { color: var(--dim); font-size: 11.5px; margin-top: 10px; }
-.dcap b { color: var(--muted); font-weight: 550; }
-.dhidden { color: var(--muted); text-align: center; padding: 26px 10px; font-size: 12.5px; }
+/* ---------- the Discord card ---------- */
+.plabel { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); margin: 0 0 var(--space-sm); color: var(--color-muted); font-size: var(--text-sm); }
+.preview { padding-top: var(--space-3xs); }
+.preview .plabel span { color: var(--color-ink-2); font-weight: 550; }
+.dcard {
+  padding: var(--space-sm) var(--space-sm) var(--space-sm); border-radius: 10px; background: var(--color-discord);
+  color: var(--color-ink); border: 1px solid var(--color-discord-line);
+}
+.dcard .head { margin-bottom: var(--space-sm); font-size: var(--text-sm); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dcard .row { display: flex; gap: var(--space-sm); align-items: center; }
+.dimg { position: relative; flex: none; width: 84px; height: 84px; border-radius: 9px; background: var(--color-paper-3); }
+.dimg img.large { width: 100%; height: 100%; object-fit: cover; border-radius: 9px; }
+.dimg img.small { position: absolute; right: -5px; bottom: -5px; width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--color-discord); background: var(--color-discord); object-fit: cover; }
+.dtext { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3xs); }
+.dtext .d { font-weight: 650; overflow-wrap: anywhere; }
+.dtext .s { color: var(--color-ink-2); font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dtext .t { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-3xs); color: var(--color-discord-time); font: 600 var(--text-sm) var(--font-mono); font-variant-numeric: tabular-nums; }
+.dbuttons { display: grid; gap: var(--space-xs); margin-top: var(--space-sm); }
+.dbuttons:empty { display: none; }
+.dbuttons div { padding: var(--space-xs) var(--space-sm); border-radius: 7px; background: var(--color-paper-4); text-align: center; font-size: var(--text-sm); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dcap { margin-top: var(--space-sm); color: var(--color-muted); font-size: var(--text-xs); line-height: 1.45; overflow-wrap: anywhere; }
+.dcap b { color: var(--color-ink-2); font-weight: 550; }
+.dhidden { padding: var(--space-lg) var(--space-xs); color: var(--color-muted); font-size: var(--text-sm); text-align: center; }
 
 /* ---------- players ---------- */
-.status { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--dim); }
-.status.good { background: var(--green); box-shadow: 0 0 0 3px rgba(35,165,90,.15); }
-.status.warn { background: var(--amber); box-shadow: 0 0 0 3px rgba(240,178,50,.15); }
+.status { display: none; }
+.status.warn + .txt small { color: var(--color-warn); }
+.status.good + .txt small { color: var(--color-success); }
+.actionrow { display: flex; gap: var(--space-sm); align-items: center; margin-top: var(--space-sm); }
+.result { min-height: 0; margin-top: var(--space-xs); color: var(--color-muted); font-size: var(--text-sm); }
+.result:empty { margin: 0; }
+.result.ok { color: var(--color-success); }
+.result.err { color: var(--color-error); }
+.actionrow .result { margin: 0; }
 
 /* ---------- buttons list ---------- */
-.blist .item { padding: 9px 12px; min-height: 46px; }
-.blist .num { width: 18px; color: var(--dim); font-size: 12px; text-align: center; font-variant-numeric: tabular-nums; }
-.blist .item.off .txt { opacity: .5; }
-.blist .moves { display: flex; gap: 2px; }
-.blist .custom { display: grid; grid-template-columns: 150px 1fr; gap: 6px; flex: 1; }
+.blist .num {
+  flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px;
+  font-size: var(--text-xs); font-weight: 650; color: var(--color-accent-ink); background: var(--color-accent);
+}
+.blist .num:empty { background: transparent; box-shadow: inset 0 0 0 1px var(--color-rule-strong); }
+.blist .item.off .txt, .blist .item.off .num { opacity: 0.5; }
+.moves { display: flex; gap: 0; }
+.moves .btn.icon:disabled, .moves .btn.icon:disabled:hover { background: transparent; border-color: transparent; color: var(--color-paper-5); cursor: default; }
+.custom { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-xs); }
+.custom input { min-width: 0; }
 
 /* ---------- history ---------- */
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-.stat small { color: var(--dim); font-size: 12px; }
-.stat b { display: block; font-size: 20px; font-weight: 650; margin-top: 2px; letter-spacing: -0.01em; }
-.hbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-.hlist .item { gap: 12px; padding: 10px 12px; }
-.hthumb { width: 40px; height: 60px; border-radius: 5px; object-fit: cover; background: var(--raise); flex: none; }
-.htxt { flex: 1; min-width: 0; }
-.htxt b { font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.htxt small { color: var(--dim); font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.prog { height: 3px; border-radius: 3px; background: rgba(255,255,255,.08); margin-top: 6px; overflow: hidden; max-width: 260px; }
-.prog i { display: block; height: 100%; background: var(--accent-hi); border-radius: 3px; }
-.hacts { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
-.hlist .item:hover .hacts { opacity: 1; }
-.empty { color: var(--dim); text-align: center; padding: 40px 10px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 var(--space-xl); border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); }
+.stat { display: flex; flex-direction: column-reverse; gap: var(--space-3xs); padding: var(--space-md) 0 var(--space-md) var(--space-lg); }
+.stat:first-child { padding-left: 0; }
+.stat + .stat { border-left: 1px solid var(--color-rule); }
+.stat b { min-height: 1.05em; font-family: var(--font-display); font-weight: 500; font-size: var(--text-3xl); line-height: 1.05; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.01em; }
+.windows .stat b { font-weight: 600; font-size: var(--text-2xl); font-variant-numeric: tabular-nums lining-nums; }
+.stat small { color: var(--color-muted); font-size: var(--text-sm); }
+.hbar { display: flex; gap: var(--space-xs); margin-bottom: var(--space-sm); }
+.hbar input { flex: 1; min-width: 0; }
+.hlist .item { gap: var(--space-sm); min-height: 76px; }
+.hthumb { flex: none; width: 40px; height: 60px; border-radius: 5px; object-fit: cover; background: var(--color-paper-3); }
+.htxt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3xs); }
+.htxt b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.htxt small { color: var(--color-muted); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.htxt .sub:empty { display: none; }
+.htxt .when { display: flex; flex-wrap: wrap; column-gap: var(--space-sm); font-size: var(--text-xs); }
+.prog { width: min(260px, 100%); height: 3px; margin-top: var(--space-xs); border-radius: 2px; background: var(--color-paper-4); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--color-accent); border-radius: 2px; }
+.hacts { display: flex; gap: var(--space-2xs); opacity: 0; transition: opacity var(--dur-micro) var(--ease-out); }
+.hlist .item:hover .hacts, .hlist .item:focus-within .hacts { opacity: 1; }
+.empty { padding: 44px var(--space-lg); color: var(--color-muted); text-align: center; }
 
 /* ---------- about ---------- */
-.about-head { display: flex; gap: 16px; align-items: center; margin-bottom: 22px; }
-.about-head .mark { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 8px 24px rgba(88,101,242,.3); }
-.notes { white-space: pre-wrap; color: var(--muted); font-size: 12px; max-height: 180px; overflow-y: auto; background: rgba(0,0,0,.2); border-radius: 8px; padding: 10px 12px; user-select: text; -webkit-user-select: text; }
+.about-head { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-xl); }
+.about-head .mark { width: 64px; height: 64px; border-radius: 16px; }
+.about-head h1 { margin: 0; }
+.version { display: flex; flex-wrap: wrap; gap: var(--space-sm); color: var(--color-muted); }
+.notes {
+  max-height: 180px; overflow: auto; padding: var(--space-3xs) 0 var(--space-3xs) var(--space-sm); border-left: 2px solid var(--color-accent);
+  color: var(--color-ink-2); font-size: var(--text-sm); white-space: pre-wrap; user-select: text; -webkit-user-select: text;
+}
 
 /* ---------- welcome ---------- */
-.welcome { position: fixed; inset: 0; background: var(--bg); display: none; z-index: 10; }
-.welcome.on { display: grid; place-items: center; }
-.welcome::before { content: ""; position: absolute; inset: 0; background: radial-gradient(80% 60% at 50% 0%, rgba(88,101,242,.18), transparent 70%); pointer-events: none; }
-.wbox { position: relative; width: min(520px, calc(100vw - 48px)); }
-.steps { display: flex; gap: 6px; justify-content: center; margin-bottom: 28px; }
-.steps i { width: 26px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.1); transition: background .25s; }
-.steps i.on { background: var(--accent-hi); }
-.wstep { display: none; animation: rise .35s cubic-bezier(.2,.8,.3,1); }
-.wstep.on { display: block; }
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.wstep h1 { font-size: 26px; text-align: center; }
-.wstep .lead { text-align: center; margin: 6px auto 24px; }
-.wnav { display: flex; justify-content: space-between; align-items: center; margin-top: 26px; }
-.wbig { width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 16px; background: linear-gradient(160deg, #6d78f6, #4752c4); display: grid; place-items: center; box-shadow: 0 10px 30px rgba(88,101,242,.35); }
-.ol { margin: 0 0 14px; padding-left: 20px; color: var(--muted); }
-.ol li { margin: 3px 0; }
-.result { font-size: 12px; margin-top: 8px; min-height: 18px; color: var(--dim); }
-.result.ok { color: var(--green); } .result.err { color: #ff8a8d; }
+.welcome {
+  position: fixed; inset: 0; z-index: var(--z-modal); display: none; place-items: center;
+  background: var(--color-scrim);
+}
+.welcome.on { display: grid; }
+.wbox {
+  width: min(540px, calc(100% - 48px)); max-height: calc(100% - 48px); overflow-y: auto;
+  padding: 28px 32px var(--space-lg); border-radius: 16px; background: var(--color-paper-2);
+  box-shadow: var(--shadow-modal);
+}
+.steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-xs); margin-bottom: 28px; }
+.steps i { height: 3px; border-radius: 2px; background: var(--color-paper-4); transition: background-color var(--dur-short) var(--ease-out); }
+.steps i.on { background: var(--color-accent); }
+.wstep { display: none; }
+.wstep.on { display: block; animation: rise var(--dur-short) var(--ease-out); }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.wstep h1 { font-size: var(--text-2xl); }
+.wstep .lead { margin-bottom: var(--space-lg); }
+.wstep .group { background: transparent; border: 0; border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); border-radius: 0; }
+.wstep .group .item { padding-inline: 0; }
+.wnav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); margin-top: 28px; }
+.wbig { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: var(--space-lg); border-radius: 16px; background: var(--color-accent); color: var(--color-accent-ink); }
+.ol { margin: 0 0 var(--space-md); padding-left: 1.3em; color: var(--color-ink-2); line-height: 1.6; }
+.ol li + li { margin-top: var(--space-2xs); }
+.ol li::marker { color: var(--color-muted); font-variant-numeric: tabular-nums; }
 
-/* Windows: a normal title bar sits above the page. */
-.windows nav { padding-top: 18px; }
-.windows section { padding-top: 26px; }
-.windows h1 { font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; font-weight: 600; }
-.windows .btn, .windows .seg button, .windows nav button { border-radius: 5px; }
+/* ---------- platform ---------- */
+.windows nav { padding-top: var(--space-lg); }
+.windows section { padding-top: 32px; }
 .mac-only, .win-only { display: none; }
 .macos .mac-only, .windows .win-only { display: revert; }
+
+@media (max-width: 860px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .sticky { position: static; }
+  section { padding-inline: var(--space-lg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .saved { transition-duration: var(--dur-short) !important; } /* keep the fade, drop the wipe and the sink */
+  .js .saved.gone { transform: none; }
+}
 </style>
 </head>
 <body>
 <div class="app">
   <nav id="nav">
-    <div class="brand" id="brand"><span class="mark"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></span>Marquee</div>
-    <button data-s="general"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4"/></svg>General</button>
-    <button data-s="card"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="3" width="12.4" height="10" rx="2"/><rect x="4" y="5.3" width="3.4" height="3.4" rx=".8"/><path d="M9 6h3M9 8h2"/></svg>Discord card</button>
-    <button data-s="buttons"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3.5" width="12" height="3.5" rx="1.2"/><rect x="2" y="9" width="12" height="3.5" rx="1.2"/></svg>Buttons</button>
-    <button data-s="privacy"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2v3.6c0 3.2-2.2 5.6-5 6.8-2.8-1.2-5-3.6-5-6.8V3.8z"/></svg>Privacy</button>
-    <button data-s="players"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.6"/><path d="M6.8 5.2v3.6L9.8 7z" fill="currentColor" stroke="none"/><path d="M5 13.5h6"/></svg>Players</button>
-    <button data-s="history"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg>History</button>
-    <button data-s="about"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.8v.1" stroke-linecap="round"/></svg>About<span class="dot" id="updDot" style="display:none"></span></button>
+    <span class="navmark" id="navmark" aria-hidden="true"></span>
+    <div class="brand" id="brand"><span class="mark"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="currentColor"/></svg></span>Marquee</div>
+    <button data-s="general"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7L3.4 3.4"/></svg>General</button>
+    <button data-s="card"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="3" width="12.4" height="10" rx="2"/><rect x="4" y="5.3" width="3.4" height="3.4" rx=".8"/><path d="M9 6h3M9 8h2"/></svg>Discord card</button>
+    <button data-s="buttons"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3.5" width="12" height="3.5" rx="1.2"/><rect x="2" y="9" width="12" height="3.5" rx="1.2"/></svg>Buttons</button>
+    <button data-s="privacy"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2v3.6c0 3.2-2.2 5.6-5 6.8-2.8-1.2-5-3.6-5-6.8V3.8z"/></svg>Privacy</button>
+    <button data-s="players"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.6"/><path d="M6.8 5.2v3.6L9.8 7z" fill="currentColor" stroke="none"/><path d="M5 13.5h6"/></svg>Players</button>
+    <button data-s="history"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg>History</button>
+    <button data-s="about"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.8v.1" stroke-linecap="round"/></svg>About<span class="dot" id="updDot" style="display:none"></span></button>
     <div class="grow"></div>
     <div class="saved" id="saved"></div>
   </nav>
@@ -238,13 +451,13 @@ select { padding-right: 26px; }
       <h2>Connections</h2>
       <div class="group">
         <div class="item col">
-          <div class="head"><div class="txt"><b>Discord Application ID</b><small>Its name is what Discord shows after “Watching”.</small></div><a class="link" data-open="https://discord.com/developers/applications">Developer Portal ↗</a></div>
+          <div class="head"><div class="txt"><b>Discord Application ID</b><small>Its name is what Discord shows after “Watching”.</small></div><a class="link" data-open="https://discord.com/developers/applications">Developer Portal</a></div>
           <input type="text" class="mono w-full" data-k="discord_client_id" placeholder="e.g. 1234567890123456789" spellcheck="false">
         </div>
         <div class="item col">
-          <div class="head"><div class="txt"><b>TMDB API key</b><small>The v3 key or the v4 read access token both work.</small></div><a class="link" data-open="https://www.themoviedb.org/settings/api">Get a free key ↗</a></div>
-          <div style="display:flex;gap:8px">
-            <input type="password" class="mono" style="flex:1" data-k="tmdb_api_key" id="tmdbKey" placeholder="Paste your key" spellcheck="false">
+          <div class="head"><div class="txt"><b>TMDB API key</b><small>The v3 key or the v4 read access token both work.</small></div><a class="link" data-open="https://www.themoviedb.org/settings/api">Get a free key</a></div>
+          <div class="inline">
+            <input type="password" class="mono" data-k="tmdb_api_key" id="tmdbKey" placeholder="Paste your key" spellcheck="false">
             <button class="btn" id="showKey">Show</button>
             <button class="btn" id="testKey">Test</button>
           </div>
@@ -274,7 +487,7 @@ select { padding-right: 26px; }
           <h2>Basics</h2>
           <div class="group">
             <div class="item"><div class="txt"><b>Status line</b><small>What follows “Watching” in the member list.</small></div>
-              <select data-k="status_display"><option value="details">The title</option><option value="state">The episode line</option><option value="name">Your app's name</option></select></div>
+              <select data-k="status_display"><option value="details">The title</option><option value="state">The episode line</option><option value="name">Your app’s name</option></select></div>
             <div class="item"><div class="txt"><b>Default artwork</b><small>Choose Artwork in the menu overrides it per title.</small></div>
               <select data-k="artwork"><option value="episode">Episode still</option><option value="season">Season poster</option><option value="poster">Show or movie poster</option><option value="backdrop">Backdrop</option></select></div>
             <div class="item"><div class="txt"><b>Show while paused</b><small>Keep the card up, marked as paused.</small></div><label class="sw"><input type="checkbox" data-k="show_when_paused"><span></span></label></div>
@@ -282,12 +495,12 @@ select { padding-right: 26px; }
           </div>
 
           <h2>Text</h2>
-          <div class="seg" id="tplKind" style="margin-bottom:10px"><button data-k="episode" class="on">TV episodes</button><button data-k="movie">Movies</button></div>
+          <div class="seg under" id="tplKind"><button data-k="episode" class="on">TV episodes</button><button data-k="movie">Movies</button></div>
           <div class="group" id="tplGroup"></div>
-          <div style="margin-top:12px">
-            <div class="plabel"><span>Placeholders — click to insert</span></div>
+          <div class="placeholders">
+            <div class="plabel"><span>Placeholders, click to insert</span></div>
             <div class="chips" id="placeholders"></div>
-            <p class="lead" style="font-size:12px;margin:10px 0 0;color:var(--dim)">Parts separated by “ · ” disappear when their placeholders are empty. <code class="mono">{tagline|title}</code> uses the title when there's no tagline.</p>
+            <p class="lead note">Parts separated by “ · ” disappear when their placeholders are empty. <code class="mono">{tagline|title}</code> uses the title when there’s no tagline.</p>
           </div>
         </div>
         <div class="sticky preview"></div>
@@ -297,16 +510,16 @@ select { padding-right: 26px; }
     <!-- ======================= Buttons ======================= -->
     <section data-s="buttons">
       <h1>Buttons</h1>
-      <p class="lead">Links under your card. Discord shows the first two that apply to what you're watching; the title and artwork open the first one.</p>
+      <p class="lead">Links under your card. Discord shows the first two that apply to what you’re watching; the title and artwork open the first one.</p>
       <div class="split">
         <div>
-          <div class="group" style="margin-bottom:18px">
+          <div class="group spaced">
             <div class="item"><div class="txt"><b>Show buttons</b><small>Discord shows them to others, not on your own profile.</small></div><label class="sw"><input type="checkbox" data-k="show_buttons"><span></span></label></div>
           </div>
           <div class="group blist" id="blist"></div>
-          <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <div class="actionrow">
             <button class="btn" id="addCustom">Add your own link</button>
-            <span class="link" style="cursor:default">Use placeholders in the address, like <code class="mono">https://example.com/?q={title}</code></span>
+            <span class="hint">Use placeholders in the address, like <code class="mono">https://example.com/?q={title}</code></span>
           </div>
         </div>
         <div class="sticky preview"></div>
@@ -346,9 +559,9 @@ select { padding-right: 26px; }
       <h1>Players</h1>
       <p class="lead">Marquee follows these players. Setting one up switches on the connection it needs and leaves the rest of its settings alone.</p>
       <div class="group" id="playerList"></div>
-      <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+      <div class="actionrow">
         <button class="btn primary" id="setupPlayers">Set Up Players</button>
-        <span class="result" id="setupResult" style="margin:0"></span>
+        <span class="result" id="setupResult"></span>
       </div>
 
       <h2>Watch for</h2>
@@ -360,20 +573,20 @@ select { padding-right: 26px; }
         <div class="item"><div class="txt"><b>VLC web interface password</b><small>Filled in by Set Up Players.</small></div><input type="password" class="w-md mono" data-k="vlc_password"></div>
         <div class="item win-only"><div class="txt"><b>MPC-HC / MPC-BE web interface port</b></div><input type="number" class="w-sm" data-k="mpc_port" min="1" max="65535"></div>
       </div>
-      <p class="lead" style="font-size:12px;margin-top:10px;color:var(--dim)">Port and watcher changes apply after Marquee restarts.</p>
+      <p class="lead note">Port and watcher changes apply after Marquee restarts.</p>
     </section>
 
     <!-- ======================= History ======================= -->
     <section data-s="history">
       <h1>History</h1>
-      <p class="lead">Everything you've watched with Marquee running. Kept on this computer only.</p>
+      <p class="lead">Everything you’ve watched with Marquee running. Kept on this computer only.</p>
       <div class="stats">
-        <div class="stat"><small>This week</small><b id="stWeek">–</b></div>
-        <div class="stat"><small>All time</small><b id="stTotal">–</b></div>
-        <div class="stat"><small>Titles</small><b id="stTitles">–</b></div>
+        <div class="stat"><small>This week</small><b id="stWeek"></b></div>
+        <div class="stat"><small>All time</small><b id="stTotal"></b></div>
+        <div class="stat"><small>Titles</small><b id="stTitles"></b></div>
       </div>
       <div class="hbar">
-        <input type="text" id="hsearch" placeholder="Filter" style="flex:1">
+        <input type="text" id="hsearch" placeholder="Filter by title">
         <button class="btn danger" id="clearHistory">Clear History</button>
       </div>
       <div class="group hlist" id="hlist"></div>
@@ -382,15 +595,15 @@ select { padding-right: 26px; }
     <!-- ======================= About ======================= -->
     <section data-s="about">
       <div class="about-head">
-        <div class="mark"><svg width="24" height="24" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></div>
-        <div><h1 style="margin:0">Marquee</h1><div style="color:var(--muted)">Version <span id="version"></span> · <a data-open="https://github.com/xanaxfather/marquee">GitHub</a></div></div>
+        <div class="mark"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="currentColor"/></svg></div>
+        <div><h1>Marquee</h1><div class="version"><span>Version <span id="version"></span></span><a data-open="https://github.com/xanaxfather/marquee">GitHub</a></div></div>
       </div>
 
       <h2>Updates</h2>
       <div class="group">
         <div class="item col" id="updBox">
           <div class="head"><div class="txt"><b id="updTitle">Check for a new version</b><small id="updSub"></small></div>
-            <div style="display:flex;gap:8px"><button class="btn" id="checkUpdate">Check Now</button><button class="btn primary" id="installUpdate" style="display:none">Install and Restart</button></div></div>
+            <div class="inline"><button class="btn" id="checkUpdate">Check Now</button><button class="btn primary" id="installUpdate" style="display:none">Install and Restart</button></div></div>
           <div class="notes" id="updNotes" style="display:none"></div>
         </div>
       </div>
@@ -413,9 +626,9 @@ select { padding-right: 26px; }
     <div class="steps" id="steps"><i></i><i></i><i></i><i></i><i></i></div>
 
     <div class="wstep" data-w="0">
-      <div class="wbig"><svg width="26" height="26" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="#fff"/></svg></div>
+      <div class="wbig"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 12 12"><path d="M3 2.2v7.6L9.6 6z" fill="currentColor"/></svg></div>
       <h1>Welcome to Marquee</h1>
-      <p class="lead">Marquee shows the movie or show you're watching on your Discord profile, with artwork, episode names and progress. Setup takes about two minutes.</p>
+      <p class="lead">Marquee shows the movie or show you’re watching on your Discord profile, with artwork, episode names and progress. Setup takes about two minutes.</p>
       <div class="wnav"><a class="link" id="skip">Skip setup</a><button class="btn primary" data-next>Get Started</button></div>
     </div>
 
@@ -439,7 +652,7 @@ select { padding-right: 26px; }
         <li>Request an API key (choose “Personal use”).</li>
         <li>Paste the <b>API Key</b> or <b>Read Access Token</b>.</li>
       </ol>
-      <div style="display:flex;gap:8px"><input type="password" class="mono" style="flex:1" data-k="tmdb_api_key" id="wTmdbKey" placeholder="TMDB key" spellcheck="false"><button class="btn" id="wTestKey">Test</button></div>
+      <div class="inline"><input type="password" class="mono" data-k="tmdb_api_key" id="wTmdbKey" placeholder="TMDB key" spellcheck="false"><button class="btn" id="wTestKey">Test</button></div>
       <div class="result" id="wTmdbResult"></div>
       <div class="wnav"><button class="btn" data-back>Back</button><button class="btn primary" data-next>Continue</button></div>
     </div>
@@ -449,11 +662,11 @@ select { padding-right: 26px; }
       <p class="lead">Marquee switches on the connection each installed player needs. Quit and reopen the player afterwards.</p>
       <div class="group" id="wPlayers"></div>
       <div class="result" id="wSetupResult"></div>
-      <div class="wnav"><button class="btn" data-back>Back</button><div style="display:flex;gap:8px"><button class="btn" id="wSetup">Set Up Players</button><button class="btn primary" data-next>Continue</button></div></div>
+      <div class="wnav"><button class="btn" data-back>Back</button><div class="inline"><button class="btn" id="wSetup">Set Up Players</button><button class="btn primary" data-next>Continue</button></div></div>
     </div>
 
     <div class="wstep" data-w="4">
-      <h1>You're all set</h1>
+      <h1>You’re all set</h1>
       <p class="lead">Play something and it appears on Discord within a few seconds. Marquee lives in the <span class="mac-only">menu bar</span><span class="win-only">system tray</span>.</p>
       <div class="group">
         <div class="item"><div class="txt"><b class="loginText">Launch at login</b></div><label class="sw"><input type="checkbox" id="wLogin"><span></span></label></div>
@@ -466,7 +679,7 @@ select { padding-right: 26px; }
 
 <script>
 const CTX = /*__CTX__*/null;
-document.documentElement.classList.add(CTX.platform || "macos");
+document.documentElement.classList.add(CTX.platform || "macos", "js");
 const $ = id => document.getElementById(id);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 const post = m => window.ipc.postMessage(JSON.stringify(m));
@@ -486,8 +699,12 @@ function flush() {
   if (!Object.keys(pending).length) return;
   post({ type: "save", values: pending });
   pending = {};
-  $("saved").className = "saved";
-  $("saved").textContent = "Saving…";
+  const el = $("saved");
+  // While "Saved" is still showing, a follow-up save keeps it rather than flickering through "Saving…".
+  if (el.dataset.state === "saved") return;
+  el.className = "saved";
+  el.dataset.state = "saving";
+  el.textContent = "Saving…";
 }
 function schedulePreview() {
   clearTimeout(previewTimer);
@@ -495,13 +712,22 @@ function schedulePreview() {
 }
 window.__saved = r => {
   const el = $("saved");
+  clearTimeout(el.t);
   if (r.ok) {
     el.className = "saved";
-    el.innerHTML = '<svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-4.7" stroke="#23a55a" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> Saved';
-    clearTimeout(el.t); el.t = setTimeout(() => { el.textContent = ""; }, 1800);
+    if (el.dataset.state !== "saved") {
+      el.innerHTML = '<svg aria-hidden="true" width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-4.7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg> Saved';
+      el.dataset.state = "saved";
+    }
+    el.t = setTimeout(() => {
+      el.classList.add("gone");
+      el.dataset.state = "";
+      el.t = setTimeout(() => { if (el.classList.contains("gone")) el.textContent = ""; }, 360);
+    }, 1800);
   } else {
     el.className = "saved err";
-    el.textContent = "Couldn't save: " + (r.error || "unknown error");
+    el.dataset.state = "err";
+    el.textContent = "Couldn’t save: " + (r.error || "unknown error");
   }
 };
 window.addEventListener("beforeunload", flush);
@@ -531,14 +757,61 @@ for (const el of $$("[data-k]")) {
 for (const a of $$("[data-open]")) a.onclick = e => { e.preventDefault(); post({ type: "open", url: a.dataset.open }); };
 
 // ------------------------------------------------------------ navigation
+// Switching categories. Timeline, all starting on the click:
+// old section leaves at once · new section arrives as a wave from the side of travel (heading 12px, then intro and controls 8px, 0/35/60ms, 220ms) ·
+// notch slides to the new row (220ms) · the Discord card glides to its new spot (260ms), or re-seats 20px from the side of travel when the spot is the same (280ms, 40ms in).
+const EASE = getComputedStyle(document.documentElement).getPropertyValue("--ease-out").trim() || "ease-out";
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ORDER = $$("nav button").map(b => b.dataset.s);
+let current = null;
+function placeMark(btn, animate) {
+  const mark = $("navmark");
+  if (!animate) mark.style.transition = "none";
+  mark.style.transform = `translateY(${btn.offsetTop + (btn.offsetHeight - mark.offsetHeight) / 2}px)`;
+  if (!animate) { mark.getBoundingClientRect(); mark.style.transition = ""; }
+  mark.classList.add("ready");
+}
 function show(section) {
   if (section === "welcome") { openWelcome(); section = "general"; }
   if (!$$("section").some(s => s.dataset.s === section)) section = "general";
+  const prev = current; current = section;
+  const moving = prev !== null && prev !== section;
+  const from = moving && previewEl.offsetParent !== null ? previewEl.getBoundingClientRect() : null;
   $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.s === section));
   $$("section").forEach(s => s.classList.toggle("on", s.dataset.s === section));
   $("content").scrollTop = 0;
-  const host = document.querySelector(`section[data-s="${section}"] .preview`);
+  const sec = document.querySelector(`section[data-s="${section}"]`);
+  const host = sec.querySelector(".preview");
   if (host) host.appendChild(previewEl);
+  placeMark($$("nav button").find(b => b.dataset.s === section), moving);
+  if (!moving) return;
+  const still = calm();
+  const down = ORDER.indexOf(section) > ORDER.indexOf(prev) ? 1 : -1;
+  // The page arrives as one wave in the direction of travel: heading, then intro, then the controls.
+  // Gaps shrink (0, 35, 60ms) so it reads as one gesture, and everything has landed by ~280ms.
+  const parts = [...sec.children].flatMap(el => el.classList.contains("split")
+    ? [...el.children].filter(c => !c.classList.contains("preview")) : [el]);
+  const STEP = [0, 35, 60];
+  parts.forEach((el, i) => {
+    el.getAnimations().filter(a => a.id === "enter").forEach(a => a.cancel());
+    const rise = (i === 0 ? 12 : 8) * down;
+    el.animate(still ? { opacity: [0, 1] } : { opacity: [0, 1], transform: [`translateY(${rise}px)`, "none"] },
+      { id: "enter", duration: 220, delay: still ? 0 : STEP[Math.min(i, 2)], easing: EASE, fill: "backwards" });
+  });
+  if (!host) return;
+  previewEl.getAnimations().filter(a => a.id === "carry").forEach(a => a.cancel());
+  if (still) { previewEl.animate({ opacity: [0.4, 1] }, { id: "carry", duration: 220, easing: EASE }); return; }
+  const to = previewEl.getBoundingClientRect();
+  const x = from ? from.left - to.left : 0, y = from ? from.top - to.top : 0;
+  if (Math.abs(x) + Math.abs(y) > 0.5) {
+    // Narrow window: the card's spot moved, so it glides there from where it was.
+    previewEl.animate({ transform: [`translate(${x}px, ${y}px)`, "none"] }, { id: "carry", duration: 260, easing: EASE });
+  } else {
+    // Wide window: same spot in every section, so it re-seats from the direction of travel
+    // (fading from half if it was already showing, from nothing if it's new), landing just after the heading.
+    previewEl.animate({ opacity: [from ? 0.4 : 0, 1], transform: [`translateY(${20 * down}px)`, "none"] },
+      { id: "carry", duration: 280, delay: 40, easing: EASE, fill: "backwards" });
+  }
 }
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
 window.__section = s => show(s);
@@ -644,14 +917,14 @@ function renderPreview() {
   if (!a) { host.innerHTML = `<div class="dcard"><div class="dhidden">Loading preview…</div></div>`; return; }
   const app = CTX.app_name || "Marquee";
   if (a.hidden) {
-    host.innerHTML = `<div class="dcard"><div class="dhidden">Hidden by your privacy settings — nothing is shown on Discord.</div></div>`;
+    host.innerHTML = `<div class="dcard"><div class="dhidden">Hidden by your privacy settings. Nothing is shown on Discord.</div></div>`;
     return;
   }
   const assets = a.assets || {};
   host.innerHTML = `<div class="dcard"><div class="head"></div><div class="row">
       <div class="dimg">${assets.large_image ? '<img class="large">' : ""}${assets.small_image ? '<img class="small">' : ""}</div>
       <div class="dtext"><div class="d"></div><div class="s"></div>
-        <div class="t"><svg width="14" height="11" viewBox="0 0 15 12" fill="currentColor"><rect x="0" y="0" width="15" height="9.5" rx="2"/><rect x="4" y="10.5" width="7" height="1.5" rx=".75"/></svg><span id="pvTime"></span></div></div>
+        <div class="t"><svg aria-hidden="true" width="14" height="11" viewBox="0 0 15 12" fill="currentColor"><rect x="0" y="0" width="15" height="9.5" rx="2"/><rect x="4" y="10.5" width="7" height="1.5" rx=".75"/></svg><span id="pvTime"></span></div></div>
     </div><div class="dbuttons"></div></div>
     <div class="dcap"><b>Artwork hover:</b> <span class="lt"></span></div>`;
   const status = { 0: app, 1: a.state, 2: a.details }[a.status_display_type ?? 2];
@@ -688,7 +961,7 @@ function renderButtons() {
     item.innerHTML = `<span class="num">${shown && shown <= 2 ? shown : ""}</span>` +
       (custom ? `<div class="custom"><input type="text" placeholder="Label" class="cl"><input type="text" class="mono cu" placeholder="https://…"></div>`
               : `<div class="txt"><b></b><small></small></div>`) +
-      `<div class="moves"><button class="btn icon up" title="Move up"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 6.5L5 3.5l3 3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button><button class="btn icon down" title="Move down"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5l3-3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button></div>` +
+      `<div class="moves"><button class="btn icon up" title="Move up"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M2 6.5L5 3.5l3 3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button><button class="btn icon down" title="Move down"><svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10"><path d="M2 3.5L5 6.5l3-3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></button></div>` +
       (custom ? `<button class="btn icon del" title="Remove">✕</button>` : `<label class="sw"><input type="checkbox"><span></span></label>`);
     if (custom) {
       const [label, url] = r.v.split("|").map(s => (s || "").trim());
@@ -857,7 +1130,7 @@ function renderHistory() {
     if (e.image && /^https:/.test(e.image)) row.querySelector("img").src = e.image;
     row.querySelector("b").textContent = e.label ? `${e.title} · ${e.label}` : e.year ? `${e.title} (${e.year})` : e.title;
     row.querySelector(".sub").textContent = e.episode_title || (e.kind ? "" : "Not identified");
-    row.querySelector(".when").textContent = [ago(e.last_watched), dur(e.watched) + " watched", e.player].filter(Boolean).join(" · ");
+    for (const part of [ago(e.last_watched), dur(e.watched) + " watched", e.player].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; row.querySelector(".when").appendChild(sp); }
     const play = row.querySelector(".play"); if (play) play.onclick = () => post({ type: "open_file", path: e.path });
     const tm = row.querySelector(".tmdb"); if (tm) tm.onclick = () => post({ type: "open", url: e.tmdb_url });
     row.querySelector(".rm").onclick = () => { post({ type: "remove_history", key: e.key }); hist = hist.filter(x => x.key !== e.key); renderHistory(); };
@@ -902,10 +1175,10 @@ window.__update = u => {
     $("installUpdate").textContent = u.asset ? "Install and Restart" : "Download";
     $("updNotes").textContent = u.notes || "";
   } else if (u && u.error) {
-    $("updTitle").textContent = "Couldn't check for updates";
+    $("updTitle").textContent = "Couldn’t check for updates";
     $("updSub").textContent = u.error;
   } else {
-    $("updTitle").textContent = "You're up to date";
+    $("updTitle").textContent = "You’re up to date";
     $("updSub").textContent = `Marquee ${CTX.version} is the latest version.`;
   }
 };
