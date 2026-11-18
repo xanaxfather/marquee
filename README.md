@@ -25,6 +25,10 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 
 ---
 
+> [!NOTE]
+> **macOS: "Apple could not verify Marquee"**<br>
+> Marquee isn't signed with a paid Apple Developer ID, so macOS Gatekeeper may block it the first time. It isn't a virus: Marquee is open source and every download is built by GitHub Actions from this repository. To open it, go to **System Settings → Privacy & Security** and click **Open Anyway** (on macOS 14 and earlier, right-click Marquee.app → Open). [More details and a Terminal one-liner](#apple-could-not-verify-marquee-gatekeeper).
+
 ## Contents
 
 - [Features](#features)
