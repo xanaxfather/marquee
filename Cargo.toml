@@ -1,6 +1,6 @@
 [package]
 name = "marquee"
-version = "0.3.3"
+version = "0.4.0"
 description = "Discord Rich Presence for what you're watching — movies and TV, identified automatically"
 edition = "2024"
 build = "build.rs"
