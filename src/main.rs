@@ -5,6 +5,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod artwork;
+mod backup;
 mod cache;
 mod config;
 mod core;
@@ -23,6 +24,7 @@ mod picker;
 mod platform;
 mod players;
 mod presence;
+mod rules;
 mod setup;
 mod style;
 #[cfg(target_os = "macos")]

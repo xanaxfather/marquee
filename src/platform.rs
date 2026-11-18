@@ -30,6 +30,23 @@ pub fn open_path(path: &Path, text: bool) {
     }
 }
 
+/// Show a file selected in Finder / Explorer.
+pub fn reveal_path(path: &Path) {
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("/usr/bin/open").arg("-R").arg(path).spawn();
+    #[cfg(windows)]
+    let result = {
+        // Explorer wants `/select,"path"` as one argument, quoted its own way.
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("explorer.exe").raw_arg(format!("/select,\"{}\"", path.display())).spawn()
+    };
+    #[cfg(not(any(target_os = "macos", windows)))]
+    let result = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(path)).spawn();
+    if let Err(e) = result {
+        tracing::warn!(error = %e, path = %path.display(), "could not reveal");
+    }
+}
+
 /// Open an https URL in the default browser.
 pub fn open_url(url: &str) {
     if !url.starts_with("https://") {

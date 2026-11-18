@@ -3,10 +3,13 @@
 
 use crate::metadata::{Media, MediaKind, Resolution};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_ENTRIES: usize = 500;
+/// Hour buckets kept per entry (the oldest go first); ~170 days of nonstop play.
+const MAX_HOURS: usize = 4096;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
@@ -29,6 +32,10 @@ pub struct Entry {
     pub watched: f64,
     pub position: Option<f64>,
     pub duration: Option<f64>,
+    /// Seconds played in each hour (key: unix seconds / 3600), for Stats.
+    /// Missing in files written before Stats existed; older versions ignore it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub hours: BTreeMap<u64, f64>,
 }
 
 impl Entry {
@@ -47,6 +54,30 @@ impl Entry {
             (None, Some(y)) => format!("{} ({y})", self.title),
             _ => self.title.clone(),
         }
+    }
+}
+
+/// Spread `seconds` of playback that ended at `end` (unix seconds) over the
+/// hours it covered.
+fn credit_hours(hours: &mut BTreeMap<u64, f64>, end: u64, seconds: f64) {
+    if !seconds.is_finite() {
+        return;
+    }
+    let mut left = seconds.max(0.0);
+    let mut t = end;
+    // Ticks are a minute or so; the bound only guards against nonsense input.
+    for _ in 0..48 {
+        if left <= 0.0 || t == 0 {
+            break;
+        }
+        let start = (t - 1) / 3600 * 3600;
+        let take = left.min((t - start) as f64);
+        *hours.entry(start / 3600).or_insert(0.0) += take;
+        left -= take;
+        t = start;
+    }
+    while hours.len() > MAX_HOURS {
+        hours.pop_first();
     }
 }
 
@@ -138,6 +169,7 @@ impl Store {
                         watched: 0.0,
                         position: None,
                         duration: None,
+                        hours: BTreeMap::new(),
                     },
                 );
                 0
@@ -146,6 +178,7 @@ impl Store {
         let mut e = self.entries.remove(idx);
         e.last_watched = t;
         e.watched += seconds.max(0.0);
+        credit_hours(&mut e.hours, t, seconds);
         e.path = path.to_string();
         if !player.is_empty() {
             e.player = player.to_string();
@@ -169,6 +202,7 @@ impl Store {
         let Some(e) = self.entries.iter_mut().find(|e| e.key == key) else { return };
         e.watched += seconds.max(0.0);
         e.last_watched = now();
+        credit_hours(&mut e.hours, e.last_watched, seconds);
         if position.is_some() {
             e.position = position;
         }
@@ -248,6 +282,43 @@ mod tests {
         assert_eq!(Store::at(path.clone()).entries, s.entries);
         assert_eq!(duration_text(3600.0 * 6.0 + 1200.0), "6h 20m");
         assert_eq!(duration_text(10.0), "under a minute");
+        // Every second credited lands in an hour bucket.
+        let total: f64 = s.entries.iter().flat_map(|e| e.hours.values()).sum();
+        assert_eq!(total, 150.0);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn hours_split_at_boundaries_and_stay_bounded() {
+        let mut h = BTreeMap::new();
+        // 30 minutes ending 10 minutes into hour 100.
+        credit_hours(&mut h, 100 * 3600 + 600, 1800.0);
+        assert_eq!(h.get(&100), Some(&600.0));
+        assert_eq!(h.get(&99), Some(&1200.0));
+        // Ending exactly on the hour belongs to the hour before.
+        let mut h = BTreeMap::new();
+        credit_hours(&mut h, 200 * 3600, 60.0);
+        assert_eq!(h.keys().copied().collect::<Vec<_>>(), vec![199]);
+        // Nonsense in, nothing silly out.
+        credit_hours(&mut h, 300 * 3600, f64::NAN);
+        credit_hours(&mut h, 300 * 3600, -5.0);
+        credit_hours(&mut h, 0, 60.0);
+        credit_hours(&mut h, 400 * 3600, 1e12);
+        assert!(h.len() <= 1 + 48);
+        let mut big = BTreeMap::new();
+        for i in 0..(MAX_HOURS as u64 + 10) {
+            credit_hours(&mut big, (i + 1) * 3600, 60.0);
+        }
+        assert_eq!(big.len(), MAX_HOURS);
+        assert_eq!(big.keys().next(), Some(&10));
+    }
+
+    #[test]
+    fn reads_files_from_before_stats() {
+        let old = r#"[{"key":"movie:1","kind":"Movie","title":"Heat","year":1995,"label":null,"episode_title":null,"image":null,"tmdb_url":null,"path":"/a.mkv","player":"IINA","first_watched":1,"last_watched":2,"watched":60.0,"position":null,"duration":null}]"#;
+        let e: Vec<Entry> = serde_json::from_str(old).unwrap();
+        assert!(e[0].hours.is_empty());
+        // And an empty map isn't written, so the file stays as it was.
+        assert!(!serde_json::to_string(&e).unwrap().contains("hours"));
     }
 }

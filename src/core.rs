@@ -11,6 +11,7 @@ use crate::metadata::{Media, Resolution, Resolver};
 use crate::parse::{self, FileKind, Guess};
 use crate::platform::notify;
 use crate::players::{PlayerEvent, Snapshot, SourceId};
+use crate::rules::{self, RuleAction};
 use crate::update::{self, Release};
 use crate::webwin::Kind;
 use crate::{paths, presence, setup};
@@ -79,6 +80,8 @@ pub enum Command {
     InstallUpdate,
     ClearHistory,
     RemoveHistory(String),
+    // Settings were imported: reload the config and look the file up again.
+    Imported,
     Quit,
 }
 
@@ -216,6 +219,15 @@ struct SourceState {
     since: Instant,
 }
 
+/// Whether what's playing may appear on Discord, after rules and privacy lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Visibility {
+    Shown,
+    /// "Watching something", no title.
+    Generic,
+    Hidden,
+}
+
 /// What the history is currently timing.
 struct HistoryMark {
     key: String,
@@ -247,6 +259,10 @@ pub struct Core<F: Fn(UiEvent)> {
     active: Option<SourceId>,
     player_connected: bool,
     snap: Snapshot,
+    /// When the shown player was paused (cleared on resume or a new file).
+    paused_since: Option<Instant>,
+    /// Paused past `idle_timeout`: the presence is cleared until playback resumes.
+    idle_cleared: bool,
     resolution: Option<Resolution>,
     resolve_retry_at: Option<Instant>,
     resolve_backoff: Duration,
@@ -296,6 +312,8 @@ impl<F: Fn(UiEvent)> Core<F> {
             active: None,
             player_connected: false,
             snap: Snapshot::default(),
+            paused_since: None,
+            idle_cleared: false,
             resolution: None,
             resolve_retry_at: None,
             resolve_backoff: RESOLVE_RETRY_MIN,
@@ -338,6 +356,7 @@ impl<F: Fn(UiEvent)> Core<F> {
                 self.resolve_retry_at,
                 self.update_check_at,
                 history_tick,
+                self.idle_deadline(),
             ]
             .into_iter()
             .flatten()
@@ -463,6 +482,10 @@ impl<F: Fn(UiEvent)> Core<F> {
                         self.history.remove(&key);
                         self.push_recent();
                     }
+                    Command::Imported => {
+                        self.reload_config();
+                        self.re_resolve();
+                    }
                 }
             }
         }
@@ -528,6 +551,18 @@ impl<F: Fn(UiEvent)> Core<F> {
             self.track_history(true);
         }
         self.snap = s;
+        // Idle timeout: time a pause from its start; any resume or new file resets it.
+        let paused_now = self.snap.is_playing() && self.snap.paused;
+        if path_changed || !paused_now {
+            if self.idle_cleared && !path_changed {
+                tracing::info!("playback resumed; restoring the presence");
+            }
+            self.paused_since = None;
+            self.idle_cleared = false;
+        }
+        if paused_now && self.paused_since.is_none() {
+            self.paused_since = Some(Instant::now());
+        }
         if path_changed {
             self.on_new_path();
         }
@@ -546,6 +581,11 @@ impl<F: Fn(UiEvent)> Core<F> {
         let kind = parse::file_kind(&path);
         let is_url = path.contains("://");
         tracing::info!(path, ?kind, player = %self.snap.player, "now playing");
+        // Rules come before any lookup: a file they hide or anonymise never reaches TMDB.
+        if let Some(action @ (RuleAction::Never | RuleAction::Generic)) = self.rule() {
+            tracing::info!(?action, "a rule covers this file; not looking it up");
+            return;
+        }
         match kind {
             FileKind::Audio | FileKind::Image => {
                 tracing::info!(path, "not a video; presence will be cleared");
@@ -584,6 +624,35 @@ impl<F: Fn(UiEvent)> Core<F> {
         presence::is_private(&self.cfg, self.snap.path.as_deref(), self.resolution.as_ref())
     }
 
+    /// The most specific rule for the current player and file.
+    fn rule(&self) -> Option<RuleAction> {
+        let mut names = vec![self.snap.player.as_str()];
+        names.extend(self.active);
+        rules::evaluate(&self.cfg.rules, &names, self.snap.path.as_deref())
+    }
+
+    fn visibility(&self) -> Visibility {
+        match self.rule() {
+            Some(RuleAction::Always) => Visibility::Shown,
+            Some(RuleAction::Never) => Visibility::Hidden,
+            Some(RuleAction::Generic) => Visibility::Generic,
+            None if self.is_private() => match self.cfg.privacy_mode {
+                PrivacyMode::Hide => Visibility::Hidden,
+                PrivacyMode::Generic => Visibility::Generic,
+            },
+            None => Visibility::Shown,
+        }
+    }
+
+    /// When the current pause runs past `idle_timeout`, if it's being timed.
+    fn idle_deadline(&self) -> Option<Instant> {
+        let minutes = self.cfg.idle_timeout;
+        if minutes == 0 || self.idle_cleared || !self.cfg.show_when_paused {
+            return None;
+        }
+        self.paused_since.map(|t| t + Duration::from_secs(u64::from(minutes) * 60))
+    }
+
     // ---------------------------------------------------------------- history
 
     /// Start, continue or stop timing what's playing. `force` credits the
@@ -591,7 +660,7 @@ impl<F: Fn(UiEvent)> Core<F> {
     fn track_history(&mut self, force: bool) {
         let now = Instant::now();
         let current = match (self.cfg.history && !self.snap.paused, self.current_resolution()) {
-            (true, Some(r)) if !self.is_private() && !r.path.contains("://") => {
+            (true, Some(r)) if self.visibility() == Visibility::Shown && !r.path.contains("://") => {
                 Some((history::key_for(&r.path, r), r.path.clone()))
             }
             _ => None,
@@ -906,9 +975,15 @@ impl<F: Fn(UiEvent)> Core<F> {
         } else if !new.check_updates {
             self.update_check_at = None;
         }
+        // Re-checked against the new timeout (or none) from the start of the pause.
+        self.idle_cleared = false;
         if new.tmdb_api_key != self.cfg.tmdb_api_key || new.language != self.cfg.language {
             let _ =
                 self.resolver.send(Job::Reconfigure { key: new.tmdb_api_key.clone(), language: new.language.clone() });
+            self.cfg = new;
+            self.re_resolve();
+        } else if new.rules != self.cfg.rules {
+            // A file a rule kept from TMDB may need looking up now (or the reverse).
             self.cfg = new;
             self.re_resolve();
         } else {
@@ -968,10 +1043,11 @@ impl<F: Fn(UiEvent)> Core<F> {
             return None;
         }
         self.snap.path.as_deref()?;
-        if self.snap.paused && !self.cfg.show_when_paused {
+        if self.snap.paused && (!self.cfg.show_when_paused || self.idle_cleared) {
             return None;
         }
-        if self.cfg.privacy_mode == PrivacyMode::Hide && self.is_private() {
+        let visibility = self.visibility();
+        if visibility == Visibility::Hidden {
             return None;
         }
         let image = self
@@ -979,7 +1055,14 @@ impl<F: Fn(UiEvent)> Core<F> {
             .as_ref()
             .and_then(|r| r.media.as_ref())
             .and_then(|m| artwork::effective(&self.cfg, &self.artwork, m));
-        Some(presence::build(&self.cfg, &self.snap, self.resolution.as_ref(), image, Instant::now()))
+        Some(presence::build_with(
+            &self.cfg,
+            &self.snap,
+            self.resolution.as_ref(),
+            image,
+            Instant::now(),
+            visibility == Visibility::Generic,
+        ))
     }
 
     fn flush(&mut self) {
@@ -1101,22 +1184,38 @@ impl<F: Fn(UiEvent)> Core<F> {
             self.check_update(false);
         }
 
+        if self.idle_deadline().is_some_and(|t| t <= now) {
+            self.idle_cleared = true;
+            tracing::info!(
+                minutes = self.cfg.idle_timeout,
+                "paused too long; clearing the presence until playback resumes"
+            );
+            self.schedule_flush();
+        }
+
         if self.flush_at.is_some_and(|t| t <= now) {
             self.flush();
         }
     }
 
     fn push_ui(&mut self) {
-        let private = self.is_playing_video() && self.is_private();
+        let visibility = if self.is_playing_video() { self.visibility() } else { Visibility::Shown };
         let now = if !self.enabled {
             "Presence hidden".to_string()
         } else if self.player_connected && self.snap.is_playing() {
+            let ruled = matches!(self.rule(), Some(RuleAction::Never | RuleAction::Generic));
             match self.snap.path.as_deref().map(parse::file_kind) {
                 Some(FileKind::Audio | FileKind::Image) => "Not a video (hidden)".to_string(),
-                _ if private => format!(
+                // Never looked up, so there's no title: the file name (this menu is local).
+                _ if ruled => format!(
+                    "{} ({} by a rule)",
+                    parse::display_fallback(self.snap.path.as_deref().unwrap_or("")).title,
+                    if visibility == Visibility::Hidden { "hidden" } else { "private" }
+                ),
+                _ if visibility != Visibility::Shown => format!(
                     "{} ({})",
                     presence::summary(self.resolution.as_ref()),
-                    if self.cfg.privacy_mode == PrivacyMode::Hide { "hidden" } else { "private" }
+                    if visibility == Visibility::Hidden { "hidden" } else { "private" }
                 ),
                 _ => presence::summary(self.resolution.as_ref()),
             }
@@ -1143,7 +1242,12 @@ impl<F: Fn(UiEvent)> Core<F> {
         idle.sort();
         idle.dedup();
         let player = if self.active.is_some() {
-            format!("{}: {}", self.snap.player, if self.snap.paused { "paused" } else { "playing" })
+            let state = match (self.snap.paused, self.idle_cleared) {
+                (true, true) => "paused, status cleared",
+                (true, false) => "paused",
+                (false, _) => "playing",
+            };
+            format!("{}: {state}", self.snap.player)
         } else if self.setup_just_done {
             "Players set up — restart them once".to_string()
         } else if !idle.is_empty() {
@@ -1156,7 +1260,7 @@ impl<F: Fn(UiEvent)> Core<F> {
         let now_state = if !self.enabled {
             NowState::Hidden
         } else if self.player_connected && self.snap.is_playing() {
-            if private && self.cfg.privacy_mode == PrivacyMode::Hide {
+            if visibility == Visibility::Hidden {
                 NowState::Hidden
             } else if self.snap.paused {
                 NowState::Paused

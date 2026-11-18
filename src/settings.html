@@ -150,6 +150,7 @@ h2 {
   overflow-wrap: break-word; min-width: 0;
 }
 .lead + h2, .split > div > h2:first-child { margin-top: 0; }
+.lead.note + h2 { margin-top: var(--space-xl); }
 
 .split { display: grid; grid-template-columns: minmax(0, 1fr) 288px; gap: var(--space-lg); align-items: start; }
 .sticky { position: sticky; top: var(--space-lg); }
@@ -370,6 +371,53 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 .hacts { display: flex; gap: var(--space-2xs); opacity: 0; transition: opacity var(--dur-micro) var(--ease-out); }
 .hlist .item:hover .hacts, .hlist .item:focus-within .hacts { opacity: 1; }
 .empty { padding: 44px var(--space-lg); color: var(--color-muted); text-align: center; }
+.empty .btn { margin-top: var(--space-md); }
+
+/* ---------- stats ---------- */
+.stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.stat b { overflow-wrap: anywhere; }
+.stat .delta { min-height: 1.4em; margin-top: var(--space-3xs); font-size: var(--text-xs); }
+.stat .delta.up { color: var(--color-success); }
+.chart { margin-bottom: var(--space-xs); }
+.cbars {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-xs); align-items: end;
+  height: 176px; border-bottom: 1px solid var(--color-rule-strong);
+}
+.cb { display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: var(--space-2xs); height: 100%; min-width: 0; outline-offset: 3px; border-radius: 4px; }
+.ct { position: relative; flex: 1; min-height: 0; }
+.cb i { position: absolute; left: 0; right: 0; bottom: 0; display: block; border-radius: 4px 4px 1px 1px; background: var(--color-paper-5); transform-origin: 50% 100%; transition: background-color var(--dur-micro) var(--ease-out); }
+.cb:hover i { background: oklch(40% 0.03 274); }
+.cb.now i { background: var(--color-accent); }
+.cb.now:hover i { background: var(--color-accent-hi); }
+.cv { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; color: var(--color-muted); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+.cb.now .cv { color: var(--color-ink); font-weight: 600; }
+.clabs { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-xs); }
+.clabs span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; color: var(--color-muted); font-size: var(--text-2xs); }
+.clabs span.now { color: var(--color-ink-2); }
+.top .item { min-height: 68px; }
+.top .rank { flex: none; width: 1.4em; color: var(--color-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; }
+.top .hthumb { width: 32px; height: 48px; }
+.top .prog { width: 100%; max-width: 320px; }
+.top .time { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-ink-2); font-weight: 550; font-variant-numeric: tabular-nums; }
+
+/* ---------- rules ---------- */
+.rule { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "folder folder folder" "player action rm"; gap: var(--space-xs); padding-block: var(--space-sm); }
+.rule .rf { grid-area: folder; min-width: 0; }
+.rule .rp { grid-area: player; min-width: 0; }
+.rule .ra { grid-area: action; min-width: 0; }
+.rule .rm { grid-area: rm; align-self: center; }
+
+/* ---------- import dialog ---------- */
+.dlg.on { animation: fade var(--dur-short) var(--ease-out); }
+.dlg.on .wbox { animation: rise var(--dur-short) var(--ease-out); }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.dlg h1 { font-size: var(--text-2xl); }
+.dlg .lead { margin-bottom: var(--space-lg); }
+.changes { margin: var(--space-md) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-rule); }
+.changes li { display: flex; gap: var(--space-md); padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-rule); font-size: var(--text-sm); }
+.changes li b { flex: none; width: 112px; font-weight: 550; }
+.changes li span { flex: 1; min-width: 0; color: var(--color-ink-2); overflow-wrap: anywhere; }
+.changes li.same span { color: var(--color-muted); }
 
 /* ---------- about ---------- */
 .about-head { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-xl); }
@@ -437,6 +485,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
     <button data-s="privacy"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2v3.6c0 3.2-2.2 5.6-5 6.8-2.8-1.2-5-3.6-5-6.8V3.8z"/></svg>Privacy</button>
     <button data-s="players"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="2.8" width="12.4" height="8.4" rx="1.6"/><path d="M6.8 5.2v3.6L9.8 7z" fill="currentColor" stroke="none"/><path d="M5 13.5h6"/></svg>Players</button>
     <button data-s="history"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.6V8l2.3 1.5"/></svg>History</button>
+    <button data-s="stats"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13.5h12"/><rect x="3" y="8" width="2.4" height="3.6" rx=".6"/><rect x="6.8" y="4.5" width="2.4" height="7.1" rx=".6"/><rect x="10.6" y="6.6" width="2.4" height="5" rx=".6"/></svg>Stats</button>
     <button data-s="about"><svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><path d="M8 7.2v4M8 4.8v.1" stroke-linecap="round"/></svg>About<span class="dot" id="updDot" style="display:none"></span></button>
     <div class="grow"></div>
     <div class="saved" id="saved"></div>
@@ -491,6 +540,8 @@ input[type=number] { font-variant-numeric: tabular-nums; }
             <div class="item"><div class="txt"><b>Default artwork</b><small>Choose Artwork in the menu overrides it per title.</small></div>
               <select data-k="artwork"><option value="episode">Episode still</option><option value="season">Season poster</option><option value="poster">Show or movie poster</option><option value="backdrop">Backdrop</option></select></div>
             <div class="item"><div class="txt"><b>Show while paused</b><small>Keep the card up, marked as paused.</small></div><label class="sw"><input type="checkbox" data-k="show_when_paused"><span></span></label></div>
+            <div class="item"><div class="txt"><b>Clear after a long pause</b><small>Take the card down after this long paused. It comes back when you press play.</small></div>
+              <select data-k="idle_timeout" data-num id="idleTimeout"><option value="0">Never</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></div>
             <div class="item"><div class="txt"><b>Extra details</b><small>Genres, rating, tagline and air year.</small></div><label class="sw"><input type="checkbox" data-k="show_extras"><span></span></label></div>
           </div>
 
@@ -545,6 +596,12 @@ input[type=number] { font-variant-numeric: tabular-nums; }
           <h2>Genres</h2>
           <div class="chips" id="genres"></div>
 
+          <h2>Rules</h2>
+          <div class="group" id="ruleList"></div>
+          <datalist id="rulePlayers"></datalist>
+          <div class="actionrow"><button class="btn" id="addRule">Add Rule</button></div>
+          <p class="lead note">Treat a player or a folder differently. The most specific rule wins: a deeper folder beats a shallower one, and naming a player beats any player. “Always show” overrides the lists above. Files a rule hides or shows without a title are never looked up on TMDB.</p>
+
           <h2>Watch history</h2>
           <div class="group">
             <div class="item"><div class="txt"><b>Keep a watch history</b><small>Stored only on this computer. Hidden titles are never recorded.</small></div><label class="sw"><input type="checkbox" data-k="history"><span></span></label></div>
@@ -592,6 +649,26 @@ input[type=number] { font-variant-numeric: tabular-nums; }
       <div class="group hlist" id="hlist"></div>
     </section>
 
+    <!-- ======================= Stats ======================= -->
+    <section data-s="stats">
+      <h1>Stats</h1>
+      <p class="lead">Worked out from your watch history on this computer. Nothing is sent anywhere.</p>
+      <div id="statsBody">
+        <div class="stats four">
+          <div class="stat"><small class="delta" id="sDelta"></small><small>This week</small><b id="sWeek"></b></div>
+          <div class="stat"><small>Last week</small><b id="sLast"></b></div>
+          <div class="stat"><small class="delta" id="sStreakNote"></small><small>Current streak</small><b id="sStreak"></b></div>
+          <div class="stat"><small>Longest streak</small><b id="sBest"></b></div>
+        </div>
+        <h2>Last 12 weeks</h2>
+        <div class="chart" id="weekChart"><div class="cbars" id="cbars" role="list"></div><div class="clabs" id="clabs" aria-hidden="true"></div></div>
+        <h2>Most watched</h2>
+        <div class="group top hlist" id="topList"></div>
+        <p class="lead note" id="statsNote"></p>
+      </div>
+      <div class="empty" id="statsEmpty"></div>
+    </section>
+
     <!-- ======================= About ======================= -->
     <section data-s="about">
       <div class="about-head">
@@ -608,6 +685,14 @@ input[type=number] { font-variant-numeric: tabular-nums; }
         </div>
       </div>
 
+      <h2>Back up and restore</h2>
+      <div class="group">
+        <div class="item"><div class="txt"><b>Export settings</b><small>Settings, rules, Fix Match and artwork choices, saved as one file in your Downloads folder.</small></div><button class="btn" id="exportBtn">Export…</button></div>
+        <div class="item"><div class="txt"><b>Include TMDB key</b><small>Off unless you need it: anyone with the file can use your key.</small></div><label class="sw"><input type="checkbox" id="exportKey"><span></span></label></div>
+        <div class="item"><div class="txt"><b>Import settings</b><small>Merge a file into what you have, or replace it. You’ll see what changes before anything is saved.</small></div><button class="btn" id="importBtn">Import…</button><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+      </div>
+      <div class="result keep-case" id="backupResult"></div>
+
       <h2>Troubleshooting</h2>
       <div class="group">
         <div class="item"><div class="txt"><b>Config file</b><small class="mono keep-case" id="cfgPath"></small></div><button class="btn" id="openConfig">Open</button><button class="btn" id="reload">Reload</button></div>
@@ -617,6 +702,19 @@ input[type=number] { font-variant-numeric: tabular-nums; }
         <div class="item"><div class="txt"><b>First-run setup</b><small>Walk through the connections again.</small></div><button class="btn" id="rerunWelcome">Open</button></div>
       </div>
     </section>
+  </div>
+</div>
+
+<!-- ======================= Import ======================= -->
+<div class="welcome dlg" id="importDlg" role="dialog" aria-modal="true" aria-labelledby="impTitle">
+  <div class="wbox">
+    <h1 id="impTitle">Import settings</h1>
+    <p class="lead" id="impFrom"></p>
+    <div class="seg" id="impMode"><button data-m="merge" class="on">Merge</button><button data-m="replace">Replace</button></div>
+    <p class="lead note" id="impModeHint"></p>
+    <ul class="changes" id="impChanges"></ul>
+    <div class="result" id="impResult"></div>
+    <div class="wnav"><button class="btn" id="impCancel">Cancel</button><button class="btn primary" id="impApply">Import</button></div>
   </div>
 </div>
 
@@ -694,6 +792,7 @@ function set(key, value, { now = false } = {}) {
   saveTimer = setTimeout(flush, now ? 0 : 500);
   schedulePreview();
   if (key === "buttons" || key === "show_buttons") renderButtons();
+  if (key === "show_when_paused") renderIdle();
 }
 function flush() {
   if (!Object.keys(pending).length) return;
@@ -733,17 +832,25 @@ window.__saved = r => {
 window.addEventListener("beforeunload", flush);
 
 // Bind simple controls: <input data-k>, <select data-k>, checkboxes.
+// Put the config's values into the bound controls (at start, and after an import).
+function syncControls() {
+  for (const el of $$("[data-k]")) {
+    const k = el.dataset.k;
+    if (!(k in cfg)) continue;
+    if (el.type === "checkbox") el.checked = !!cfg[k];
+    else el.value = cfg[k] ?? "";
+  }
+}
 for (const el of $$("[data-k]")) {
   const k = el.dataset.k;
   if (!(k in cfg)) continue;
   if (el.type === "checkbox") {
-    el.checked = !!cfg[k];
     el.onchange = () => { set(k, el.checked); $$(`[data-k="${k}"]`).forEach(o => o !== el && (o.checked = el.checked)); };
   } else {
-    el.value = cfg[k] ?? "";
     const commit = () => {
       let v = el.value;
-      if (el.type === "number") { v = parseInt(v, 10); if (!(v > 0 && v < 65536)) { el.classList.add("bad"); return; } }
+      if ("num" in el.dataset) { v = parseInt(v, 10); if (!Number.isFinite(v)) return; }
+      else if (el.type === "number") { v = parseInt(v, 10); if (!(v > 0 && v < 65536)) { el.classList.add("bad"); return; } }
       else v = v.trim();
       el.classList.remove("bad");
       if (cfg[k] === v) return;
@@ -754,6 +861,7 @@ for (const el of $$("[data-k]")) {
     if (el.tagName === "INPUT" && el.type !== "number") el.oninput = () => { clearTimeout(el.t); el.t = setTimeout(commit, 600); };
   }
 }
+syncControls();
 for (const a of $$("[data-open]")) a.onclick = e => { e.preventDefault(); post({ type: "open", url: a.dataset.open }); };
 
 // ------------------------------------------------------------ navigation
@@ -785,6 +893,7 @@ function show(section) {
   const host = sec.querySelector(".preview");
   if (host) host.appendChild(previewEl);
   placeMark($$("nav button").find(b => b.dataset.s === section), moving);
+  if (section === "stats") growBars();
   if (!moving) return;
   const still = calm();
   const down = ORDER.indexOf(section) > ORDER.indexOf(prev) ? 1 : -1;
@@ -822,6 +931,7 @@ function show(section) {
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
 window.__section = s => show(s);
 document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("importDlg").classList.contains("on")) { closeImport(); return; }
   if (e.key === "Escape" && !$("welcome").classList.contains("on")) post({ type: "close" });
   if ((e.metaKey || e.ctrlKey) && e.key === "w") post({ type: "close" });
 });
@@ -862,6 +972,20 @@ window.__tmdbTest = r => {
   tmdbTarget.className = "result " + (r.ok ? "ok" : "err");
   tmdbTarget.textContent = r.ok ? "Key works." : "TMDB said: " + r.error;
 };
+
+// ------------------------------------------------------------ Discord card: idle timeout
+function renderIdle() {
+  const sel = $("idleTimeout"), v = Number(cfg.idle_timeout) || 0;
+  // A value typed into the config file that isn't one of the choices still shows.
+  if (![...sel.options].some(o => Number(o.value) === v)) {
+    const o = document.createElement("option");
+    o.value = String(v); o.textContent = `${v.toLocaleString()} minutes`;
+    sel.appendChild(o);
+  }
+  sel.value = String(v);
+  // Only matters while the card stays up during a pause.
+  sel.disabled = !cfg.show_when_paused;
+}
 
 // ------------------------------------------------------------ Discord card: templates
 const TPL = {
@@ -1036,9 +1160,12 @@ function tagList(box, key, normalize = s => s) {
   input.onblur = add;
   box.onclick = e => { if (e.target === box) input.focus(); };
   render();
+  return render;
 }
-tagList($("hideTitles"), "hide_titles");
-tagList($("hideFolders"), "hide_folders", s => s.replace(/^["']|["']$/g, ""));
+const tagRenders = [
+  tagList($("hideTitles"), "hide_titles"),
+  tagList($("hideFolders"), "hide_folders", s => s.replace(/^["']|["']$/g, "")),
+];
 const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama", "Family", "Fantasy", "History", "Horror", "Kids", "Music", "Mystery", "News", "Reality", "Romance", "Science Fiction", "Sci-Fi & Fantasy", "Soap", "Talk", "Thriller", "War", "War & Politics", "Western"];
 function renderGenres() {
   $("genres").innerHTML = "";
@@ -1055,6 +1182,46 @@ function renderGenres() {
     $("genres").appendChild(c);
   }
 }
+
+// ------------------------------------------------------------ Privacy: rules
+const RULE_PLAYERS = CTX.platform === "windows"
+  ? ["mpv", "VLC", "MPC-HC", "MPC-BE", "Media Player", "Movies & TV", "PotPlayer", "KMPlayer", "GOM Player", "QuickLook"]
+  : ["IINA", "mpv", "VLC"];
+for (const p of RULE_PLAYERS) { const o = document.createElement("option"); o.value = p; $("rulePlayers").appendChild(o); }
+const cleanText = v => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+let ruleRows = [];
+function loadRules() { ruleRows = (Array.isArray(cfg.rules) ? cfg.rules : []).map(r => ({ player: cleanText(r.player), folder: cleanText(r.folder), action: r.action || "never" })); }
+function saveRules() {
+  // A rule with neither a folder nor a player would match nothing; it stays on screen but isn't saved.
+  set("rules", ruleRows
+    .map(r => ({ player: cleanText(r.player), folder: cleanText(r.folder).replace(/^["']|["']$/g, ""), action: r.action }))
+    .filter(r => r.player || r.folder));
+}
+function renderRules(enter = -1) {
+  const host = $("ruleList");
+  host.innerHTML = "";
+  if (!ruleRows.length) { host.innerHTML = `<div class="item"><div class="txt"><small>No rules. Add one to hide a folder, keep a player anonymous, or always show something the lists would hide.</small></div></div>`; return; }
+  ruleRows.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "item rule";
+    row.innerHTML = `<input type="text" class="mono rf keep-case" placeholder="Any folder, e.g. ~/Movies/Home" spellcheck="false" aria-label="Folder">
+      <input type="text" class="rp keep-case" list="rulePlayers" placeholder="Any player" spellcheck="false" aria-label="Player">
+      <select class="ra" aria-label="Action"><option value="never">Never show</option><option value="generic">Show without title</option><option value="always">Always show</option></select>
+      <button class="btn icon rm" title="Remove rule" aria-label="Remove rule">✕</button>`;
+    const [rf, rp, ra] = [row.querySelector(".rf"), row.querySelector(".rp"), row.querySelector(".ra")];
+    rf.value = r.folder; rp.value = r.player; ra.value = r.action;
+    rf.oninput = () => { r.folder = rf.value; saveRules(); };
+    rp.oninput = () => { r.player = rp.value; saveRules(); };
+    ra.onchange = () => { r.action = ra.value; saveRules(); };
+    row.querySelector(".rm").onclick = () => { ruleRows.splice(i, 1); saveRules(); renderRules(); };
+    host.appendChild(row);
+    if (i === enter) {
+      if (!calm()) row.animate({ opacity: [0, 1], transform: ["translateY(-4px)", "none"] }, { duration: 220, easing: EASE });
+      rf.focus();
+    }
+  });
+}
+$("addRule").onclick = () => { ruleRows.push({ player: "", folder: "", action: "never" }); renderRules(ruleRows.length - 1); };
 
 // ------------------------------------------------------------ Players
 function playerRows(host, players) {
@@ -1117,8 +1284,7 @@ const ago = t => {
 };
 let hist = CTX.history || [];
 function renderHistory() {
-  const week = hist.filter(e => e.last_watched >= Date.now() / 1000 - 7 * 86400).reduce((a, e) => a + e.watched, 0);
-  $("stWeek").textContent = dur(week);
+  $("stWeek").textContent = dur(computeStats(hist).thisWeek);
   $("stTotal").textContent = dur(hist.reduce((a, e) => a + e.watched, 0));
   $("stTitles").textContent = new Set(hist.map(e => e.title)).size;
   const q = $("hsearch").value.trim().toLowerCase();
@@ -1139,7 +1305,7 @@ function renderHistory() {
     for (const part of [ago(e.last_watched), dur(e.watched) + " watched", e.player].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; row.querySelector(".when").appendChild(sp); }
     const play = row.querySelector(".play"); if (play) play.onclick = () => post({ type: "open_file", path: e.path });
     const tm = row.querySelector(".tmdb"); if (tm) tm.onclick = () => post({ type: "open", url: e.tmdb_url });
-    row.querySelector(".rm").onclick = () => { post({ type: "remove_history", key: e.key }); hist = hist.filter(x => x.key !== e.key); renderHistory(); };
+    row.querySelector(".rm").onclick = () => { post({ type: "remove_history", key: e.key }); hist = hist.filter(x => x.key !== e.key); renderHistory(); renderStats(); };
     host.appendChild(row);
   }
 }
@@ -1155,7 +1321,276 @@ $("clearHistory").onclick = () => {
   clearTimeout(confirmClear); confirmClear = null;
   $("clearHistory").textContent = "Clear History";
   post({ type: "clear_history" });
-  hist = []; renderHistory();
+  hist = []; renderHistory(); renderStats();
+};
+
+// ------------------------------------------------------------ Stats
+// Everything here is worked out from the local watch history; nothing is sent anywhere.
+// Days and weeks are the user's local ones (weeks start on Monday).
+const WEEKS = 12;
+const STREAK_MIN = 60; // seconds of watching that make a day count toward a streak
+const num = v => (typeof v === "number" && Number.isFinite(v) && v > 0) ? v : 0;
+const dayOf = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+const addDays = (day, n) => { const d = new Date(day); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n).getTime(); };
+const weekOf = ms => { const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7).getTime(); };
+function computeStats(entries) {
+  const now = Date.now(), today = dayOf(now);
+  const days = new Map();
+  const credit = (ms, secs) => {
+    if (!secs || !Number.isFinite(ms) || ms <= 0) return;
+    const k = dayOf(ms);
+    if (Number.isFinite(k) && k <= today) days.set(k, (days.get(k) || 0) + secs);
+  };
+  const groups = new Map();
+  for (const e of Array.isArray(entries) ? entries : []) {
+    if (!e || typeof e !== "object") continue;
+    const hours = e.hours && typeof e.hours === "object" ? Object.entries(e.hours) : [];
+    if (hours.length) for (const [h, secs] of hours) credit(Number(h) * 3600000, Math.min(num(secs), 3600));
+    // History from before Stats has only totals: count them on the day last watched.
+    else credit(num(e.last_watched) * 1000, num(e.watched));
+    // Episodes of one show count together; unidentified files group by their title.
+    const key = String(e.key ?? "");
+    const tv = /^tv:\d+/.exec(key);
+    const title = String(e.title ?? "").trim() || "Untitled";
+    const g = tv ? tv[0] : key.startsWith("movie:") ? key : "t:" + title.toLowerCase();
+    let x = groups.get(g);
+    if (!x) groups.set(g, x = { title, show: !!tv, kind: e.kind, year: e.year, image: null, items: 0, secs: 0 });
+    x.items++;
+    x.secs += num(e.watched);
+    if (!x.image && typeof e.image === "string" && /^https:/.test(e.image)) x.image = e.image;
+  }
+  const thisWeekStart = weekOf(now);
+  const weeks = [];
+  for (let i = WEEKS - 1; i >= 0; i--) weeks.push({ start: addDays(thisWeekStart, -7 * i), secs: 0 });
+  const slot = new Map(weeks.map(w => [w.start, w]));
+  for (const [day, secs] of days) { const w = slot.get(weekOf(day)); if (w) w.secs += secs; }
+  const active = new Set([...days].filter(([, secs]) => secs >= STREAK_MIN).map(([day]) => day));
+  // Today still counts as "on the streak" until it's over, so it runs from yesterday when today is empty.
+  let current = 0;
+  for (let d = active.has(today) ? today : addDays(today, -1); active.has(d); d = addDays(d, -1)) current++;
+  let longest = 0, run = 0, prev = null;
+  for (const d of [...active].sort((a, b) => a - b)) { run = prev !== null && addDays(prev, 1) === d ? run + 1 : 1; longest = Math.max(longest, run); prev = d; }
+  const top = [...groups.values()].filter(g => g.secs > 0).sort((a, b) => b.secs - a.secs).slice(0, 5);
+  return { weeks, thisWeek: weeks[WEEKS - 1].secs, lastWeek: weeks[WEEKS - 2].secs, current, longest, top, watchedToday: active.has(today) };
+}
+const nf = (n, o) => { try { return new Intl.NumberFormat(undefined, o).format(n); } catch { return String(Math.round(n)); } };
+// Past a million hours (over a century) the data is nonsense; say so briefly instead of printing 30 digits.
+const bigHours = h => h >= 1e6 ? nf(1e6, { notation: "compact" }) + "+h"
+  : h >= 100000 ? nf(h, { notation: "compact", maximumFractionDigits: 1 }) + "h" : nf(Math.round(h)) + "h";
+// "6h 20m", "45m"; very large totals drop the minutes and group digits.
+function hm(secs) {
+  const m = Math.round(num(secs) / 60);
+  if (m < 1) return num(secs) > 0 ? "<1m" : "0m";
+  const h = Math.floor(m / 60), r = m % 60;
+  if (h >= 1000) return bigHours(h);
+  return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${m}m`;
+}
+// Bar labels: "45m", "2.5h", "120h".
+function shortH(secs) {
+  const m = num(secs) / 60;
+  if (m < 1) return "";
+  if (m < 60) return Math.round(m) + "m";
+  const h = m / 60;
+  return h < 10 ? nf(h, { maximumFractionDigits: 1 }) + "h" : h >= 1000 ? bigHours(h) : nf(Math.round(h)) + "h";
+}
+const dayCount = n => `${nf(n)} ${n === 1 ? "day" : "days"}`;
+function renderStats() {
+  const st = computeStats(hist);
+  const body = $("statsBody"), empty = $("statsEmpty");
+  const hasData = st.top.length > 0 || st.weeks.some(w => w.secs > 0);
+  body.style.display = hasData ? "" : "none";
+  empty.style.display = hasData ? "none" : "";
+  if (!hasData) {
+    empty.innerHTML = cfg.history
+      ? "Nothing to count yet. Play something with Marquee running and your weeks show up here."
+      : `Watch history is off, so there’s nothing to count.<br><button class="btn" id="statsOn">Turn On Watch History</button>`;
+    const on = $("statsOn");
+    if (on) on.onclick = () => { set("history", true, { now: true }); syncControls(); renderStats(); };
+    return;
+  }
+  $("sWeek").textContent = hm(st.thisWeek);
+  $("sLast").textContent = hm(st.lastWeek);
+  const diff = st.thisWeek - st.lastWeek, delta = $("sDelta");
+  delta.className = "delta" + (diff >= 60 ? " up" : "");
+  delta.textContent = Math.abs(diff) < 60 ? "Same as last week" : `${hm(Math.abs(diff))} ${diff > 0 ? "more" : "less"} than last week`;
+  $("sStreak").textContent = dayCount(st.current);
+  $("sBest").textContent = dayCount(Math.max(st.longest, st.current));
+  $("sStreakNote").textContent = st.current === 0 ? "" : st.watchedToday ? "Including today" : "Watch today to keep it going";
+
+  const max = Math.max(...st.weeks.map(w => w.secs), 1);
+  const fmtWeek = ms => new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const bars = $("cbars"), labs = $("clabs");
+  bars.innerHTML = ""; labs.innerHTML = "";
+  st.weeks.forEach((w, i) => {
+    const now = i === WEEKS - 1;
+    const b = document.createElement("div");
+    b.className = "cb" + (now ? " now" : "");
+    b.setAttribute("role", "listitem");
+    b.tabIndex = 0;
+    const label = `${now ? "This week" : "Week of " + fmtWeek(w.start)}: ${hm(w.secs)}`;
+    b.title = label; b.setAttribute("aria-label", label);
+    b.innerHTML = `<span class="cv"></span><span class="ct"><i></i></span>`;
+    b.firstChild.textContent = shortH(w.secs);
+    // A watched week always gets a visible sliver, however small next to the biggest.
+    b.querySelector("i").style.height = w.secs > 0 ? `max(3px, ${(w.secs / max * 100).toFixed(2)}%)` : "0";
+    bars.appendChild(b);
+    const l = document.createElement("span");
+    l.textContent = fmtWeek(w.start);
+    if (now) l.className = "now";
+    labs.appendChild(l);
+  });
+  $("weekChart").setAttribute("aria-label", `Hours watched per week, last ${WEEKS} weeks`);
+
+  const host = $("topList");
+  host.innerHTML = "";
+  const best = st.top[0] ? st.top[0].secs : 1;
+  if (!st.top.length) host.innerHTML = `<div class="empty">No titles with watching time yet.</div>`;
+  st.top.forEach((g, i) => {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.innerHTML = `<span class="rank">${i + 1}</span>${g.image ? '<img class="hthumb" loading="lazy" alt="">' : '<div class="hthumb"></div>'}
+      <div class="htxt"><b dir="auto"></b><small class="sub"></small><div class="prog"><i></i></div></div><span class="time"></span>`;
+    if (g.image) row.querySelector("img").src = g.image;
+    const t = row.querySelector("b");
+    t.textContent = g.title; t.title = g.title;
+    row.querySelector(".sub").textContent = g.show
+      ? `${nf(g.items)} ${g.items === 1 ? "episode" : "episodes"}`
+      : g.kind === "Movie" ? (g.year ? `Movie · ${g.year}` : "Movie") : "Not identified";
+    row.querySelector(".prog i").style.width = `${Math.max(1, g.secs / best * 100).toFixed(1)}%`;
+    row.querySelector(".time").textContent = hm(g.secs);
+    host.appendChild(row);
+  });
+  $("statsNote").textContent = (cfg.history ? "" : "Watch history is off, so these numbers stop at what was already recorded. ")
+    + "Most watched counts all the time in your history; older entries from before Stats count on the day they were last watched.";
+}
+// Bars rise from the baseline in a quick left-to-right wave when Stats opens.
+function growBars() {
+  const still = calm();
+  $$("#cbars i").forEach((b, i) => {
+    b.getAnimations().forEach(a => a.cancel());
+    b.animate(still ? { opacity: [0, 1] } : { transform: ["scaleY(0)", "scaleY(1)"] },
+      { duration: still ? 160 : 280, delay: still ? 0 : 60 + i * 12, easing: EASE, fill: "backwards" });
+  });
+}
+
+// ------------------------------------------------------------ Export / import
+const two = n => String(n).padStart(2, "0");
+$("exportBtn").onclick = () => {
+  flush();
+  const d = new Date();
+  $("backupResult").className = "result keep-case"; $("backupResult").textContent = "Exporting…";
+  post({ type: "export", include_key: $("exportKey").checked, date: `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}` });
+};
+window.__exported = r => {
+  const out = $("backupResult");
+  if (!r.ok) { out.className = "result err keep-case"; out.textContent = "Couldn’t export: " + r.error; return; }
+  out.className = "result ok keep-case";
+  out.innerHTML = `Saved to <span class="mono"></span>. <a class="link" id="revealExport">Show</a>`;
+  out.querySelector(".mono").textContent = r.path;
+  $("revealExport").onclick = () => post({ type: "reveal_export" });
+};
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = () => {
+  const f = $("importFile").files[0];
+  $("importFile").value = ""; // the same file can be picked again
+  if (!f) return;
+  const out = $("backupResult");
+  if (f.size > 8 * 1024 * 1024) { out.className = "result err"; out.textContent = "That file is too large to be a Marquee settings file."; return; }
+  out.className = "result"; out.textContent = "Checking…";
+  const rd = new FileReader();
+  rd.onload = () => post({ type: "import_check", text: String(rd.result || "") });
+  rd.onerror = () => { out.className = "result err"; out.textContent = "Couldn’t read that file."; };
+  rd.readAsText(f);
+};
+const LABELS = {
+  discord_client_id: "Discord Application ID", language: "Metadata language", ipc_socket: "IINA socket", mpv_ipc: "mpv socket",
+  vlc_port: "VLC port", mpc_port: "MPC port", smtc_ignore: "Ignored media apps", disabled_players: "Watchers",
+  show_when_paused: "Show while paused", idle_timeout: "Clear after a long pause", show_buttons: "Show buttons", buttons: "Buttons",
+  show_extras: "Extra details", episode_details: "Text", episode_state: "Text", episode_image_text: "Text", movie_details: "Text",
+  movie_state: "Text", movie_image_text: "Text", hide_titles: "Hidden titles", hide_folders: "Hidden folders", hide_genres: "Hidden genres",
+  privacy_mode: "When something matches", history: "Watch history", check_updates: "Check for updates", status_display: "Status line",
+  artwork: "Default artwork", small_image_playing: "Corner badges", small_image_paused: "Corner badges", fallback_image: "Fallback artwork",
+  lowercase: "All-lowercase look", log_level: "Log level",
+};
+let importPlan = null, importMode = "merge";
+function mapLine(m, noun) {
+  const parts = [];
+  if (m.added) parts.push(`${nf(m.added)} new`);
+  if (m.changed) parts.push(`${nf(m.changed)} changed`);
+  if (m.removed) parts.push(`${nf(m.removed)} removed`);
+  return parts.length ? `${parts.join(", ")} (${nf(m.total)} ${noun} after)` : null;
+}
+function renderImport() {
+  if (!importPlan) return;
+  $$("#impMode button").forEach(b => b.classList.toggle("on", b.dataset.m === importMode));
+  $("impModeHint").textContent = importMode === "merge"
+    ? "Settings in the file win. Hidden lists, rules, Fix Match and artwork choices are combined with yours."
+    : "Everything becomes what the file says, with defaults where it says nothing. Your TMDB key stays unless the file has one.";
+  const c = importPlan[importMode];
+  const labels = [...new Set(c.settings.map(k => LABELS[k] || k))];
+  const shown = labels.slice(0, 6).join(", ") + (labels.length > 6 ? ` and ${nf(labels.length - 6)} more` : "");
+  const rows = [
+    ["Settings", labels.length ? shown : null],
+    ["Rules", c.rules.changed ? `${nf(c.rules.before)} → ${nf(c.rules.after)}` : null],
+    ["Fix Match", mapLine(c.matches, "in all")],
+    ["Artwork", mapLine(c.artwork, "in all")],
+    ["TMDB key", c.tmdb_key === "kept" ? null : c.tmdb_key === "added" ? "Added from the file" : "Replaced by the one in the file"],
+  ];
+  const ul = $("impChanges");
+  ul.innerHTML = "";
+  for (const [name, text] of rows) {
+    const li = document.createElement("li");
+    li.className = text ? "" : "same";
+    li.innerHTML = "<b></b><span></span>";
+    li.firstChild.textContent = name;
+    li.lastChild.textContent = text || (name === "TMDB key" ? "Stays as it is" : "No change");
+    ul.appendChild(li);
+  }
+  const nothing = rows.every(([, t]) => !t);
+  $("impApply").disabled = nothing;
+  $("impApply").textContent = nothing ? "Nothing to Change" : importMode === "merge" ? "Merge" : "Replace";
+}
+window.__importPlan = r => {
+  const out = $("backupResult");
+  if (!r.ok) { out.className = "result err"; out.textContent = r.error; return; }
+  out.className = "result"; out.textContent = "";
+  importPlan = r.plan; importMode = "merge";
+  const when = r.plan.exported_at ? new Date(r.plan.exported_at * 1000).toLocaleDateString(undefined, { dateStyle: "medium" }) : null;
+  $("impFrom").textContent = [
+    `From Marquee ${r.plan.app_version || "(unknown version)"}${when ? ", exported " + when : ""}.`,
+    r.plan.other_os ? "It was made on another kind of computer, so player connection paths are left alone." : "",
+  ].join(" ").trim();
+  $("impResult").className = "result"; $("impResult").textContent = "";
+  $("impApply").disabled = false;
+  $("importDlg").classList.add("on");
+  renderImport();
+  $("impCancel").focus();
+};
+$$("#impMode button").forEach(b => b.onclick = () => { importMode = b.dataset.m; renderImport(); });
+function closeImport() {
+  if (!$("importDlg").classList.contains("on")) return;
+  $("importDlg").classList.remove("on");
+  importPlan = null;
+  post({ type: "import_cancel" });
+}
+$("impCancel").onclick = closeImport;
+$("impApply").onclick = () => {
+  flush(); // unsaved edits land first, so the import isn't overwritten by them
+  clearTimeout(saveTimer);
+  $("impApply").disabled = true;
+  $("impResult").className = "result"; $("impResult").textContent = "Importing…";
+  post({ type: "import_apply", mode: importMode });
+};
+window.__imported = r => {
+  if (!r.ok) { $("impResult").className = "result err"; $("impResult").textContent = r.error; return; }
+  for (const k of Object.keys(cfg)) delete cfg[k];
+  Object.assign(cfg, r.config);
+  pending = {};
+  syncControls(); renderIdle(); renderTemplates(); renderButtons(); renderMode(); tagRenders.forEach(f => f()); renderGenres(); renderWatchers();
+  loadRules(); renderRules(); renderStats(); schedulePreview();
+  importPlan = null;
+  $("importDlg").classList.remove("on");
+  $("backupResult").className = "result ok"; $("backupResult").textContent = "Imported. Your settings are in effect now.";
 };
 
 // ------------------------------------------------------------ About
@@ -1215,6 +1650,10 @@ renderGenres();
 renderPlayers(CTX.players);
 renderWatchers();
 renderHistory();
+renderIdle();
+loadRules();
+renderRules();
+renderStats();
 renderPreview();
 show(CTX.section || "general");
 post({ type: "ready" });

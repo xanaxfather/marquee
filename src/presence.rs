@@ -298,7 +298,7 @@ pub fn is_private(cfg: &Config, path: Option<&str>, resolution: Option<&Resoluti
     title_hit || folder_hit || genre_hit
 }
 
-/// The activity to show, or `None` to clear it.
+/// The activity to show, with the privacy lists deciding whether it's generic.
 pub fn build(
     cfg: &Config,
     snap: &Snapshot,
@@ -307,6 +307,19 @@ pub fn build(
     now: Instant,
 ) -> Value {
     let private = is_private(cfg, snap.path.as_deref(), resolution);
+    build_with(cfg, snap, resolution, image, now, private)
+}
+
+/// The activity to show; `private` = "Watching something" with no title,
+/// artwork or links (the caller has applied rules and privacy lists).
+pub fn build_with(
+    cfg: &Config,
+    snap: &Snapshot,
+    resolution: Option<&Resolution>,
+    image: Option<String>,
+    now: Instant,
+    private: bool,
+) -> Value {
     let mut lines = match resolution {
         _ if private => Lines {
             details: "Something".into(),

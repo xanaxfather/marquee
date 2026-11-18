@@ -91,6 +91,16 @@ pub fn artwork_file() -> PathBuf {
     support_dir().join("artwork.json")
 }
 
+pub fn matches_file() -> PathBuf {
+    support_dir().join("matches.json")
+}
+
+/// Where exported settings go: the Downloads folder, else home.
+pub fn downloads_dir() -> PathBuf {
+    let d = home().join("Downloads");
+    if d.is_dir() { d } else { home() }
+}
+
 /// WebView2 needs a writable profile folder on Windows.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn webview_dir() -> PathBuf {

@@ -239,6 +239,10 @@ struct SettingsWin {
     episode: Media,
     movie: Media,
     player: String,
+    /// A checked import file waiting for the user to confirm it.
+    import: Option<crate::backup::Bundle>,
+    /// The last export, so "Show" can only reveal that file.
+    exported: Option<std::path::PathBuf>,
 }
 
 #[derive(Default)]
@@ -475,6 +479,61 @@ fn handle_settings_msg(windows: &mut Windows, core_tx: &Sender<Msg>, proxy: &Eve
                 platform::open_path(p, false);
             }
         }
+        "export" => {
+            let include_key = msg["include_key"].as_bool().unwrap_or(false);
+            let reply = match crate::backup::export(include_key, msg["date"].as_str().unwrap_or("")) {
+                Ok(path) => {
+                    platform::reveal_path(&path);
+                    let shown = path.display().to_string();
+                    s.exported = Some(path);
+                    json!({ "ok": true, "path": shown })
+                }
+                Err(e) => {
+                    tracing::error!(error = format!("{e:#}"), "could not export settings");
+                    json!({ "ok": false, "error": format!("{e:#}") })
+                }
+            };
+            s.win.call("__exported", &reply);
+        }
+        "reveal_export" => {
+            if let Some(p) = s.exported.as_deref().filter(|p| p.is_file()) {
+                platform::reveal_path(p);
+            }
+        }
+        "import_check" => {
+            s.import = None;
+            let text = msg["text"].as_str().unwrap_or("");
+            let reply = match crate::backup::parse(text).and_then(|b| crate::backup::preview(&b).map(|p| (b, p))) {
+                Ok((bundle, preview)) => {
+                    s.import = Some(bundle);
+                    json!({ "ok": true, "plan": preview })
+                }
+                Err(e) => {
+                    tracing::warn!(error = format!("{e:#}"), "settings file refused");
+                    json!({ "ok": false, "error": format!("{e:#}") })
+                }
+            };
+            s.win.call("__importPlan", &reply);
+        }
+        "import_cancel" => s.import = None,
+        "import_apply" => {
+            let mode = serde_json::from_value::<crate::backup::Mode>(msg["mode"].clone());
+            let reply = match (s.import.take(), mode) {
+                (Some(bundle), Ok(mode)) => match crate::backup::apply(&bundle, mode) {
+                    Ok(cfg) => {
+                        s.cfg = cfg.clone();
+                        send(Command::Imported);
+                        json!({ "ok": true, "config": cfg })
+                    }
+                    Err(e) => {
+                        tracing::error!(error = format!("{e:#}"), "could not import settings");
+                        json!({ "ok": false, "error": format!("Nothing was changed: {e:#}") })
+                    }
+                },
+                _ => json!({ "ok": false, "error": "Choose the file again." }),
+            };
+            s.win.call("__imported", &reply);
+        }
         "open_config" => platform::open_path(&paths::config_file(), true),
         "open_logs" => platform::open_path(&paths::log_dir(), false),
         "close" => windows.close(Kind::Settings),
@@ -507,7 +566,15 @@ fn open_settings(
     };
     match WebWindow::open(el, proxy.clone(), spec) {
         Ok(win) => {
-            w.settings = Some(SettingsWin { win, cfg: o.cfg, episode: o.episode, movie: o.movie, player: o.player })
+            w.settings = Some(SettingsWin {
+                win,
+                cfg: o.cfg,
+                episode: o.episode,
+                movie: o.movie,
+                player: o.player,
+                import: None,
+                exported: None,
+            })
         }
         Err(e) => tracing::error!(error = format!("{e:#}"), "could not open settings"),
     }

@@ -59,6 +59,8 @@ pub struct Config {
     /// Watchers to switch off: "IINA", "mpv", "VLC", "MPC", "SMTC", "Windows".
     pub disabled_players: Vec<String>,
     pub show_when_paused: bool,
+    /// Clear the status once playback has been paused this many minutes (0 = never).
+    pub idle_timeout: u32,
     pub show_buttons: bool,
     /// Buttons in order (Discord shows the first two): "tmdb", "imdb",
     /// "letterboxd", "trakt", "trailer", "wikipedia", or "Label | https://…{title}…".
@@ -76,6 +78,8 @@ pub struct Config {
     pub hide_folders: Vec<String>,
     pub hide_genres: Vec<String>,
     pub privacy_mode: PrivacyMode,
+    /// Per-player / per-folder rules, checked before any lookup (see `rules`).
+    pub rules: Vec<crate::rules::Rule>,
     /// Keep a local watch history (Recently Watched, stats).
     pub history: bool,
     pub check_updates: bool,
@@ -110,6 +114,7 @@ impl Default for Config {
             smtc_ignore: Vec::new(),
             disabled_players: Vec::new(),
             show_when_paused: true,
+            idle_timeout: 15,
             show_buttons: true,
             buttons: vec!["tmdb".into(), "imdb".into()],
             show_extras: true,
@@ -123,6 +128,7 @@ impl Default for Config {
             hide_folders: Vec::new(),
             hide_genres: Vec::new(),
             privacy_mode: PrivacyMode::Hide,
+            rules: Vec::new(),
             history: true,
             check_updates: true,
             setup_complete: false,
@@ -172,6 +178,8 @@ disabled_players = []
 # ---- Presence ------------------------------------------------------------
 # Keep the presence visible (marked as paused) while playback is paused.
 show_when_paused = true
+# Clear the status after this many minutes paused (0 = never); it comes back on resume.
+idle_timeout = 15
 
 # Link buttons. Discord shows them to other people, not on your own profile;
 # the title and artwork link to the first one too.
@@ -206,6 +214,11 @@ hide_folders = []
 hide_genres = []
 # "hide" = show nothing, "generic" = "Watching something" without details.
 privacy_mode = "hide"
+# Rules by player and/or folder; the most specific one wins. Actions: "never"
+# (show nothing, never looked up), "generic" ("Watching something", never
+# looked up) or "always" (shown even if the lists above would hide it), e.g.
+# rules = [{ player = "VLC", folder = "~/Movies/Home", action = "never" }]
+rules = []
 # Keep a local watch history (Recently Watched in the menu, stats in Settings).
 history = true
 
@@ -280,7 +293,7 @@ impl Config {
     /// One-line summary for diagnostics with secrets redacted.
     pub fn summary(&self) -> String {
         format!(
-            "discord_client_id={} tmdb_api_key={} language={} iina_socket={} mpv_ipc={} vlc_port={} vlc_password={} mpc_port={} disabled={:?} show_when_paused={} status_display={:?} lowercase={}",
+            "discord_client_id={} tmdb_api_key={} language={} iina_socket={} mpv_ipc={} vlc_port={} vlc_password={} mpc_port={} disabled={:?} show_when_paused={} idle_timeout={} rules={} status_display={:?} lowercase={}",
             if self.discord_client_id.is_empty() { "<unset>" } else { &self.discord_client_id },
             redact(&self.tmdb_api_key),
             self.language,
@@ -291,16 +304,16 @@ impl Config {
             self.mpc_port,
             self.disabled_players,
             self.show_when_paused,
+            self.idle_timeout,
+            self.rules.len(),
             self.status_display,
             self.lowercase,
         )
     }
 }
 
-/// Set `key = <toml value>` in the config file, keeping comments and layout.
-pub fn persist_value(key: &str, toml_value: &str) -> Result<()> {
-    let path = paths::config_file();
-    let text = std::fs::read_to_string(&path).unwrap_or_default();
+/// `text` with `key = <toml value>` set, keeping comments and layout.
+fn set_line(text: &str, key: &str, toml_value: &str) -> String {
     let mut found = false;
     let mut lines: Vec<String> = text
         .lines()
@@ -317,12 +330,30 @@ pub fn persist_value(key: &str, toml_value: &str) -> Result<()> {
     if !found {
         lines.push(format!("{key} = {toml_value}"));
     }
-    std::fs::write(&path, lines.join("\n") + "\n").with_context(|| format!("writing {}", path.display()))
+    lines.join("\n") + "\n"
 }
 
-/// Save settings from the Settings window: `{key: json value}`. Unknown keys
-/// and values of the wrong type are refused before anything is written.
-pub fn persist_json(values: &serde_json::Map<String, serde_json::Value>) -> Result<()> {
+/// Set `key = <toml value>` in the config file, keeping comments and layout.
+pub fn persist_value(key: &str, toml_value: &str) -> Result<()> {
+    let path = paths::config_file();
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    write_atomic(&path, set_line(&text, key, toml_value).as_bytes())
+}
+
+/// Write the whole file at once (temp file, then rename), so a failure never
+/// leaves it half written.
+pub fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+    }
+    let tmp = path.with_extension("tmp");
+    std::fs::write(&tmp, bytes).with_context(|| format!("writing {}", tmp.display()))?;
+    std::fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))
+}
+
+/// The config file's new text with `values` (`{key: json value}`) applied.
+/// Unknown keys and values of the wrong type are refused; nothing is written.
+pub fn prepare_json(values: &serde_json::Map<String, serde_json::Value>) -> Result<String> {
     let mut merged = serde_json::to_value(Config::load().unwrap_or_default())?;
     for (k, v) in values {
         let slot = merged.get_mut(k).with_context(|| format!("unknown setting {k}"))?;
@@ -330,11 +361,24 @@ pub fn persist_json(values: &serde_json::Map<String, serde_json::Value>) -> Resu
     }
     // Type check: the merged result must still be a valid config.
     serde_json::from_value::<Config>(merged).context("invalid settings")?;
+    let mut text = std::fs::read_to_string(paths::config_file()).unwrap_or_default();
     for (k, v) in values {
         let tv = toml::Value::try_from(v).with_context(|| format!("setting {k}"))?;
-        persist_value(k, &tv.to_string())?;
+        let tv = tv.to_string();
+        // Each setting must stay on one line for the line-based edit above.
+        anyhow::ensure!(!tv.contains('\n'), "setting {k} can't contain line breaks");
+        text = set_line(&text, k, &tv);
     }
-    Ok(())
+    // And the file as a whole must still read back.
+    toml::from_str::<Config>(&text).context("the edited config doesn't parse")?;
+    Ok(text)
+}
+
+/// Save settings from the Settings window: `{key: json value}`. Unknown keys
+/// and values of the wrong type are refused before anything is written.
+pub fn persist_json(values: &serde_json::Map<String, serde_json::Value>) -> Result<()> {
+    let text = prepare_json(values)?;
+    write_atomic(&paths::config_file(), text.as_bytes())
 }
 
 /// The config with `values` applied (for live previews; nothing is saved).
@@ -352,4 +396,37 @@ pub fn with_values(base: &Config, values: &serde_json::Map<String, serde_json::V
 
 fn redact(s: &str) -> String {
     if s.is_empty() { "<unset>".into() } else { format!("<set, {} chars>", s.len()) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::{Rule, RuleAction};
+
+    #[test]
+    fn rules_and_idle_timeout_round_trip_on_one_line() {
+        let rules = vec![
+            Rule {
+                player: "VLC".into(), folder: "C:\\Videos\\Ünïcødé \"quoted\"".into(), action: RuleAction::Generic
+            },
+            Rule { player: String::new(), folder: "~/映画".into(), action: RuleAction::Never },
+        ];
+        let tv = toml::Value::try_from(serde_json::to_value(&rules).unwrap()).unwrap().to_string();
+        assert!(!tv.contains('\n'), "{tv}");
+        let text = set_line(TEMPLATE, "rules", &tv);
+        let text = set_line(&text, "idle_timeout", "30");
+        let cfg: Config = toml::from_str(&text).unwrap();
+        assert_eq!(cfg.rules, rules);
+        assert_eq!(cfg.idle_timeout, 30);
+        // Only one line per key, and the comment lines are untouched.
+        assert_eq!(text.lines().filter(|l| l.starts_with("rules =")).count(), 1);
+        assert!(text.contains("# rules = [{ player = \"VLC\""));
+    }
+
+    #[test]
+    fn old_configs_get_defaults() {
+        let cfg: Config = toml::from_str("show_when_paused = true\n").unwrap();
+        assert_eq!(cfg.idle_timeout, 15);
+        assert!(cfg.rules.is_empty());
+    }
 }

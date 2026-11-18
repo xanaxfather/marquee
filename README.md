@@ -36,6 +36,9 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 - [Fixing a wrong match](#fixing-a-wrong-match)
 - [Discord card, buttons and privacy](#discord-card-buttons-and-privacy)
 - [Watch history](#watch-history)
+- [Stats](#stats)
+- [Rules for players and folders](#rules-for-players-and-folders)
+- [Moving your settings](#moving-your-settings)
 - [Updates](#updates)
 - [Configuration](#configuration)
 - [Command line](#command-line)
@@ -50,6 +53,10 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 - **Lets you fix mistakes.** **Fix Match…** searches TMDB so you can pick the right title for one file, a folder, or every file with that name.
 - **Your card, your way.** Rewrite each line with templates, choose which link buttons appear and in what order, and keep titles, folders or genres off Discord.
 - **Keeps a watch history.** Recently watched titles in the menu, with time watched and progress, stored only on your computer.
+- **Shows your stats.** Hours this week against last week, a 12-week chart, your most-watched shows and movies, and your daily streak, all worked out from the local history.
+- **Clears itself on a long pause.** Leave something paused and the card comes down after 15 minutes (or 5, 30, 60, never), then comes back the moment you press play.
+- **Rules per player and folder.** Never show a folder, show a player without the title, or always show something your privacy lists would hide. Files a rule covers this way are never looked up on TMDB.
+- **Moves with you.** Export settings, rules, Fix Match and artwork choices to one file and import them on another computer, merging or replacing. Your TMDB key stays out unless you include it.
 - **Uses episode stills.** You can switch any episode, season or show to a different still, poster, backdrop or your own image from the artwork picker.
 - **Stays out of the way.** About 16 MB of memory and no CPU while idle. Metadata is cached, and Discord or player restarts are handled without you doing anything.
 
@@ -168,10 +175,43 @@ Choose **Fix Match…** while the file plays. Search TMDB, pick the right movie 
 - **Templates** rewrite the title line, the second line and the artwork hover text, separately for episodes and movies. Placeholders: `{title}` `{year}` `{label}` (S2 - E3) `{season}` `{episode}` `{episode_title}` `{air_date}` `{air_year}` `{genres}` `{rating}` `{tagline}` `{player}`. A part between ` · ` separators disappears when its placeholders are empty, and `{tagline|title}` falls back to the title.
 - **Buttons**: TMDB, IMDb, Letterboxd (movies), Trakt, Watch Trailer, Wikipedia, or your own link such as `https://example.com/?q={title}`. Discord shows the first two that apply.
 - **Privacy**: list titles (or `Prefix*`), folders and genres to keep private, and choose whether they show nothing or a generic "Watching something". **Hide This Title** in the menu adds what's playing.
+- **Clear after a long pause**: with **Show while paused** on, the card comes down after the player has been paused for 5, 15 (default), 30 or 60 minutes, and returns as soon as playback resumes.
 
 ## Watch history
 
-**Recently Watched** in the menu lists the last ten titles with this week's watch time; choosing one plays the file again. **Settings… → History** has everything, with progress, time watched and filtering. History is stored in `history.json` next to the config and can be turned off under Privacy. Private titles are never recorded.
+**Recently Watched** in the menu lists the last ten titles with this week's watch time; choosing one plays the file again. **Settings… → History** has everything, with progress, time watched and filtering. History is stored in `history.json` next to the config and can be turned off under Privacy. Private titles, and files a rule hides or shows without a title, are never recorded.
+
+## Stats
+
+**Settings… → Stats** works out, from the watch history on your computer:
+
+- hours watched this week (weeks start on Monday) against last week
+- a bar chart of the last 12 weeks
+- your five most-watched shows and movies (episodes of a show count together)
+- your current and longest daily streak (a day counts after a minute of watching)
+
+Nothing is sent anywhere. History recorded before Stats existed only has totals, so it counts on the day each title was last watched.
+
+## Rules for players and folders
+
+**Settings… → Privacy → Rules** lets you treat a player, a folder, or a player in a folder differently:
+
+| Action | On Discord | Looked up on TMDB | Recorded in history |
+|---|---|---|---|
+| **Never show** | nothing | no | no |
+| **Show without title** | "Watching something" | no | no |
+| **Always show** | as usual, even if a privacy list matches | yes | yes |
+
+A folder rule covers everything inside that folder (`~/` is your home folder). Folder matching ignores case on Windows and macOS. When several rules match, the most specific wins: a deeper folder beats a shallower one, any folder beats none, and naming a player beats "any player". Player names are the ones in the menu (`IINA`, `VLC`, `MPC-HC`, `Media Player`, …); `MPC` covers both MPC-HC and MPC-BE.
+
+## Moving your settings
+
+**Settings… → About → Back up and restore**:
+
+- **Export…** saves your settings, rules, Fix Match choices and artwork choices to one JSON file in your Downloads folder and shows it. The TMDB key is left out unless you switch on **Include TMDB key**; the generated VLC password is never included.
+- **Import…** checks the file and lists what would change before anything is saved. **Merge** keeps what you have and adds the file's settings on top (privacy lists, rules, Fix Match and artwork choices are combined). **Replace** makes everything what the file says, keeping your TMDB key if the file has none. Player connection paths from a different OS are left alone.
+
+A file that isn't a Marquee export, is damaged, or comes from an older or newer export format is refused with a message, and nothing is changed. The files are only swapped in once everything has been written.
 
 ## Updates
 
@@ -197,6 +237,7 @@ Everything is in **Settings…**. The same options live in a commented config fi
 | `language` | `en-US` | Language for titles and episode names |
 | `artwork` | `episode` | Default image: `episode`, `season`, `poster` or `backdrop` |
 | `show_when_paused` | `true` | Keep the presence (marked *Paused*) while paused |
+| `idle_timeout` | `15` | Minutes paused before the presence is cleared (`0` = never); it returns on resume |
 | `show_buttons` | `true` | Link buttons under the card |
 | `buttons` | `["tmdb", "imdb"]` | Buttons in order: `tmdb`, `imdb`, `letterboxd`, `trakt`, `trailer`, `wikipedia`, or `"Label \| https://…{title}"` |
 | `show_extras` | `true` | Genres and rating for movies, air date for episodes |
@@ -204,6 +245,7 @@ Everything is in **Settings…**. The same options live in a commented config fi
 | `movie_details` / `movie_state` / `movie_image_text` | | Templates for movies (empty = default) |
 | `hide_titles` / `hide_folders` / `hide_genres` | `[]` | Keep these off Discord |
 | `privacy_mode` | `hide` | `hide` shows nothing, `generic` shows "Watching something" |
+| `rules` | `[]` | Player / folder rules, e.g. `[{ player = "VLC", folder = "~/Movies/Home", action = "never" }]`; actions `never`, `generic`, `always` ([details](#rules-for-players-and-folders)) |
 | `history` | `true` | Keep a local watch history |
 | `check_updates` | `true` | Check GitHub for new versions daily |
 | `status_display` | `details` | Member-list text: the title (`details`), the episode line (`state`) or the app name (`name`) |
@@ -292,6 +334,8 @@ src/
 ├── matching.rs      scores TMDB results against a guess
 ├── metadata.rs      TMDB lookups + cache
 ├── presence.rs      builds the Discord activity
+├── rules.rs         per-player / per-folder rules
+├── backup.rs        settings export and import
 ├── discord.rs       Discord IPC client
 ├── ipc.rs           Unix socket / named pipe stream
 ├── tray.rs          menu bar / tray menu

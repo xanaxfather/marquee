@@ -52,7 +52,7 @@ fn mtime(path: &Path) -> Option<std::time::SystemTime> {
 
 impl Store {
     pub fn open() -> Self {
-        Self::at(crate::paths::support_dir().join("matches.json"))
+        Self::at(crate::paths::matches_file())
     }
 
     fn at(path: PathBuf) -> Self {
