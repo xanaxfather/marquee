@@ -107,6 +107,8 @@ pub struct Config {
     /// A faint animated pattern behind the Settings window.
     pub animated_background: bool,
     pub background: Background,
+    /// How strongly the background pattern shows, in percent (5–100).
+    pub background_opacity: u8,
     pub log_level: String,
 }
 
@@ -155,6 +157,7 @@ impl Default for Config {
             lowercase: false,
             animated_background: true,
             background: Background::Still,
+            background_opacity: 30,
             log_level: "info".into(),
         }
     }
@@ -260,9 +263,11 @@ lowercase = false
 
 # A faint animated pattern behind the Settings window (still while Reduce
 # Motion is on). background: still (the artwork of what's playing, in
-# characters) | aquarium | sky
+# characters) | aquarium | sky. background_opacity: how strongly the pattern
+# shows, in percent (5 to 100).
 animated_background = true
 background = "still"
+background_opacity = 30
 
 # Check GitHub for new versions once a day.
 check_updates = true
@@ -302,6 +307,7 @@ impl Config {
         cfg.tmdb_api_key = cfg.tmdb_api_key.trim().to_string();
         crate::style::set_lowercase(cfg.lowercase);
         crate::style::set_animated_background(cfg.animated_background);
+        crate::style::set_background_opacity(cfg.background_opacity);
         Ok(cfg)
     }
 
@@ -454,6 +460,7 @@ mod tests {
         assert!(cfg.rules.is_empty());
         assert!(cfg.animated_background);
         assert_eq!(cfg.background, Background::Still);
+        assert_eq!(cfg.background_opacity, 30);
     }
 
     #[test]
@@ -461,11 +468,15 @@ mod tests {
         let cfg: Config = toml::from_str(TEMPLATE).unwrap();
         assert!(cfg.animated_background);
         assert_eq!(cfg.background, Background::Still);
+        assert_eq!(cfg.background_opacity, 30);
         let text = set_line(TEMPLATE, "background", "\"sky\"");
         let text = set_line(&text, "animated_background", "false");
+        let text = set_line(&text, "background_opacity", "65");
         let cfg: Config = toml::from_str(&text).unwrap();
         assert_eq!(cfg.background, Background::Sky);
         assert!(!cfg.animated_background);
+        assert_eq!(cfg.background_opacity, 65);
+        assert!(toml::from_str::<Config>(&set_line(TEMPLATE, "background_opacity", "\"x\"")).is_err());
         assert!(toml::from_str::<Config>(&set_line(TEMPLATE, "background", "\"lava\"")).is_err());
     }
 }

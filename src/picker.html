@@ -707,6 +707,7 @@ function darkroomShow(url) {
   // The thumbnail is enough at this size, and much quicker than the original.
   Bgfx.loadImage([describe(url).thumb, url], data => { if (darkroomUrl === url) darkroom.setImage(data); });
 }
+Bgfx.setOpacity(CTX.background_opacity);
 Bgfx.use(darkroom);
 Bgfx.setOn(CTX.animated_background !== false);
 darkroomShow(CTX.current || CTX.default);

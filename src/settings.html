@@ -191,6 +191,33 @@ select {
 .w-sm { width: 110px; } .w-md { width: 220px; } .w-lg { width: 300px; } .w-full { width: 100%; }
 input[type=number] { font-variant-numeric: tabular-nums; }
 
+/* ---------- slider (background opacity) ---------- */
+.range { flex: none; display: flex; align-items: center; gap: var(--space-sm); width: 180px; }
+.range output { flex: none; width: 3.2em; text-align: right; color: var(--color-ink-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+input[type=range] {
+  --fill: 30%;
+  flex: 1; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; background: transparent; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--color-accent) var(--fill), var(--color-paper-4) var(--fill));
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+  background: var(--color-ink); box-shadow: 0 1px 3px oklch(5% 0.01 274 / 0.5);
+  transition: transform var(--dur-micro) var(--ease-out);
+}
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--color-paper-4); }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--color-accent); }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--color-ink); }
+input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.1); }
+input[type=range]:active::-webkit-slider-thumb { transform: scale(0.94); }
+input[type=range]:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 4px; }
+input[type=range]:disabled { background: transparent; cursor: not-allowed; opacity: 0.45; }
+input[type=range]:disabled::-webkit-slider-thumb { transform: none; }
+.range:has(input:disabled) output { color: var(--color-muted); }
+
 /* ---------- switch ---------- */
 .sw { position: relative; flex: none; width: 36px; height: 22px; cursor: pointer; }
 .sw input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
@@ -537,6 +564,8 @@ h2 .h2note { margin-left: var(--space-xs); color: var(--color-muted); font-weigh
         <div class="item"><div class="txt"><b>Animated background</b><small>A faint moving pattern behind this window. Still when Reduce Motion is on.</small></div><label class="sw"><input type="checkbox" data-k="animated_background" id="bgToggle"><span></span></label></div>
         <div class="item"><div class="txt"><b>Background</b><small>Still draws what you're watching, or watched last.</small></div>
           <select data-k="background" id="bgStyle"><option value="still">Still</option><option value="aquarium">Aquarium</option><option value="sky">Night sky</option></select></div>
+        <div class="item"><div class="txt"><b>Background opacity</b><small>How strongly the pattern shows behind Marquee's windows.</small></div>
+          <div class="range"><input type="range" min="5" max="100" step="5" data-k="background_opacity" data-num id="bgOpacity" aria-label="Background opacity"><output id="bgOpacityVal" for="bgOpacity">30%</output></div></div>
       </div>
     </section>
 
@@ -1710,9 +1739,19 @@ window.bgApply = () => {
   Bgfx.use(PATTERNS[cfg.background]);
   Bgfx.setOn(cfg.animated_background);
   $("bgStyle").disabled = !cfg.animated_background;
+  $("bgOpacity").disabled = !cfg.animated_background;
+  bgOpacityShow();
 };
+// The slider previews live while dragging; the generic binding saves it.
+function bgOpacityShow() {
+  const el = $("bgOpacity"), v = Number(el.value) || 30;
+  el.style.setProperty("--fill", ((v - 5) / 95 * 100) + "%");
+  $("bgOpacityVal").textContent = v + "%";
+  Bgfx.setOpacity(v);
+}
 $("bgToggle").addEventListener("change", bgApply);
 $("bgStyle").addEventListener("change", bgApply);
+$("bgOpacity").addEventListener("input", bgOpacityShow);
 // Still draws what's playing (if Discord shows it), else the last thing watched.
 Bgfx.loadImage([CTX.artwork, ...(Array.isArray(CTX.history) ? CTX.history : [])
   .filter(e => e && typeof e.image === "string")

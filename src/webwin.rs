@@ -158,6 +158,7 @@ impl WebWindow {
         ctx["platform"] = serde_json::json!(if cfg!(windows) { "windows" } else { "macos" });
         ctx["lowercase"] = serde_json::json!(crate::style::lowercase());
         ctx["animated_background"] = serde_json::json!(crate::style::animated_background());
+        ctx["background_opacity"] = serde_json::json!(crate::style::background_opacity());
         // `</` would end the inline <script> early.
         let ctx = ctx.to_string().replace("</", "<\\/");
         // The shared background first, so nothing in `ctx` is mistaken for its marker.

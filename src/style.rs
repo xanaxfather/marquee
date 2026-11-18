@@ -5,10 +5,11 @@
 //! directly, see `presence::build`.
 
 use crate::paths;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 static LOWERCASE: AtomicBool = AtomicBool::new(false);
 static ANIMATED_BACKGROUND: AtomicBool = AtomicBool::new(true);
+static BACKGROUND_OPACITY: AtomicU8 = AtomicU8::new(30);
 
 pub fn set_lowercase(on: bool) {
     LOWERCASE.store(on, Ordering::Relaxed);
@@ -25,6 +26,15 @@ pub fn set_animated_background(on: bool) {
 
 pub fn animated_background() -> bool {
     ANIMATED_BACKGROUND.load(Ordering::Relaxed)
+}
+
+/// How strongly that pattern shows, in percent (`background_opacity`, 5–100).
+pub fn set_background_opacity(percent: u8) {
+    BACKGROUND_OPACITY.store(percent.clamp(5, 100), Ordering::Relaxed);
+}
+
+pub fn background_opacity() -> u8 {
+    BACKGROUND_OPACITY.load(Ordering::Relaxed)
 }
 
 /// `s` in the chosen case.

@@ -118,10 +118,10 @@ header { padding: 48px 32px var(--space-md); border-bottom: 1px solid var(--colo
 .seg button {
   flex: 1 1 auto; min-height: 28px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-control);
   background: transparent; color: var(--color-muted); font-size: var(--text-sm); font-weight: 550; white-space: nowrap; cursor: pointer;
-  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+  transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
 }
 .seg button:hover { color: var(--color-ink); }
-.seg button:active { background: var(--color-paper-3); }
+.seg button:active { background: var(--color-paper-3); transform: scale(0.96); }
 .seg button.on { background: var(--color-paper-4); color: var(--color-ink); box-shadow: var(--shadow-seg); }
 .seg.full { display: flex; }
 .seg.full button { padding: 0 var(--space-xs); }
@@ -134,13 +134,30 @@ header { padding: 48px 32px var(--space-md); border-bottom: 1px solid var(--colo
   box-shadow: 0 0 0 1px var(--color-rule);
   transition: transform var(--dur-short) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
 }
-.poster img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity var(--dur-short) var(--ease-out); }
-.poster img.ok { opacity: 1; }
+.poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Posters develop in as they arrive (script), as in the artwork picker. */
+.poster img:not(.ok) { opacity: 0; }
 .poster .none { display: grid; place-items: center; height: 100%; padding: var(--space-sm); color: var(--color-muted); font-family: var(--font-display); text-align: center; overflow-wrap: anywhere; }
-.card:hover .poster { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--color-rule-strong), var(--shadow-tile); }
-.card:active .poster { transform: scale(0.985); }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .poster { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--color-rule-strong), var(--shadow-tile); }
+}
+.card:active .poster { transform: translateY(0) scale(0.97); transition-duration: var(--dur-micro); }
 .card:focus-visible .poster { outline: 2px solid var(--color-focus); outline-offset: 4px; }
-.card.sel .poster { box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-accent); }
+/* Selection: the ring closes in onto the poster from just outside its edge. */
+.poster::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 3px var(--color-accent), inset 0 0 0 5px var(--color-paper);
+  opacity: 0; transform: scale(1.06);
+  transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-short) var(--ease-out);
+}
+.card.sel .poster::after { opacity: 1; transform: none; }
+.selmark {
+  position: absolute; top: 8px; right: 8px; display: none; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--color-accent); color: var(--color-accent-ink);
+  transition: opacity var(--dur-micro) var(--ease-out), transform var(--dur-short) var(--ease-out);
+}
+.card.sel .selmark { display: grid; }
+@starting-style { .card.sel .selmark { opacity: 0; transform: scale(0.9); } }
 .badge {
   position: absolute; left: var(--space-xs); bottom: var(--space-xs); padding: 0 var(--space-xs); border-radius: 5px;
   background: var(--color-chip); color: var(--color-ink); font-size: var(--text-2xs); font-weight: 600; line-height: 18px;
@@ -166,7 +183,9 @@ aside {
 .label { margin-bottom: var(--space-sm); color: var(--color-ink-2); font-size: var(--text-sm); font-weight: 550; }
 .pick { display: flex; gap: var(--space-md); }
 .pick .p { flex: none; width: 92px; aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; background: var(--color-paper-3); box-shadow: 0 0 0 1px var(--color-rule), var(--shadow-tile); }
-.pick .p img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pick .p img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity var(--dur-short) var(--ease-out); }
+.pick .p img.fade { opacity: 0.3; }
+.pick .p img[hidden] { display: none; }
 .pick .body { min-width: 0; }
 .pick h2 { margin: 0 0 var(--space-3xs); font-family: var(--font-display); font-weight: 500; font-size: var(--text-xl); line-height: 1.15; overflow-wrap: break-word; min-width: 0; text-wrap: balance; }
 .windows .pick h2 { font-weight: 600; font-size: var(--text-lg); }
@@ -244,7 +263,7 @@ aside {
   .toast, .toast.show { transform: translate(-50%, 0); } /* keep the fade and the blur, drop the rise and the scale */
   .toast { transition-duration: var(--dur-short) !important; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-  .card:hover .poster { transform: none; }
+  .card:hover .poster, .card:active .poster { transform: none; }
 }
 </style>
 </head>
@@ -312,8 +331,18 @@ const $ = id => document.getElementById(id);
 const post = m => window.ipc.postMessage(JSON.stringify(m));
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// Motion, as in the artwork picker: one curve, and only fades under Reduce Motion.
+const EASE = getComputedStyle(document.documentElement).getPropertyValue("--ease-out").trim() || "ease-out";
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Swap a block's contents with a short rise.
+const rise = (el, px = 4, duration = 160) => {
+  el.getAnimations().forEach(a => a.cancel());
+  el.animate(calm() ? { opacity: [0, 1] } : { opacity: [0, 1], transform: [`translateY(${px}px)`, "none"] }, { duration, easing: EASE });
+};
+
 const decoder = Bgfx.decode();
 let kind = "multi", results = null, selected = null, seasons = null, lastQuery = "";
+let gridAt = 0, travel = 0; // when the grid was last built · which way the last kind switch went
 let scope = CTX.override_scope || "file";
 
 // ---- header
@@ -336,17 +365,23 @@ const scopes = [
   ["folder", "This folder", `Every file in “${CTX.folder || "this folder"}”.`],
   ["name", "Same name", `Every file whose name reads as “${CTX.parsed_title}”, wherever it is.`],
 ];
+// Built once and then toggled, so the highlight eases between buttons instead of being rebuilt.
+for (const [id, label] of scopes) {
+  if (id === "name" && !CTX.parsed_title) continue;
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.dataset.s = id;
+  b.onclick = () => { if (scope === id) return; scope = id; renderScope(); renderEpisode(); };
+  $("scope").appendChild(b);
+}
 function renderScope() {
-  $("scope").innerHTML = "";
-  for (const [id, label, hint] of scopes) {
-    if (id === "name" && !CTX.parsed_title) continue;
-    const b = document.createElement("button");
-    b.textContent = label;
-    b.className = id === scope ? "on" : "";
-    b.onclick = () => { scope = id; renderScope(); renderEpisode(); };
-    $("scope").appendChild(b);
-    if (id === scope) $("scopeHint").textContent = hint;
-  }
+  for (const b of $("scope").children) b.classList.toggle("on", b.dataset.s === scope);
+  const hint = (scopes.find(s => s[0] === scope) || [])[2] || "";
+  const el = $("scopeHint");
+  if (el.textContent === hint) return;
+  const first = !el.dataset.set;
+  el.dataset.set = "1"; el.textContent = hint;
+  if (!first) rise(el);
 }
 renderScope();
 
@@ -363,15 +398,30 @@ let timer;
 $("q").value = CTX.query || "";
 $("q").oninput = () => { clearTimeout(timer); timer = setTimeout(search, 350); };
 $("q").onkeydown = e => { if (e.key === "Enter") { clearTimeout(timer); search(); } };
-document.querySelectorAll("#kind button").forEach(b => b.onclick = () => {
+const kindButtons = [...document.querySelectorAll("#kind button")];
+kindButtons.forEach(b => b.onclick = () => {
+  if (kind === b.dataset.k) return;
+  const from = kindButtons.findIndex(x => x.dataset.k === kind), to = kindButtons.indexOf(b);
+  travel = to > from ? 1 : -1;
   kind = b.dataset.k;
   document.querySelectorAll("#kind button").forEach(x => x.classList.toggle("on", x === b));
   search();
 });
 
+// Results arriving. Timeline, all on arrival: the skeleton leaves at once · the grid comes in as one
+// piece (200ms), 10px from the side of travel after an All/Movies/TV switch, else a 6px rise ·
+// posters already loaded ride in with it; the rest develop in as they land (320ms).
+function enterGrid() {
+  const grid = $("grid");
+  grid.getAnimations().forEach(a => a.cancel());
+  const from = travel ? `translateX(${10 * travel}px)` : "translateY(6px)";
+  travel = 0;
+  grid.animate(calm() ? { opacity: [0, 1] } : { opacity: [0, 1], transform: [from, "none"] }, { duration: 200, easing: EASE });
+}
 function renderGrid() {
   const grid = $("grid");
   grid.innerHTML = "";
+  gridAt = performance.now();
   if (results === null) {
     for (let i = 0; i < 12; i++) grid.insertAdjacentHTML("beforeend", `<div class="card"><div class="poster skel"></div><div class="t skel"></div></div>`);
     return;
@@ -383,8 +433,18 @@ function renderGrid() {
     c.className = "card" + (selected && selected.id === r.id && selected.kind === r.kind ? " sel" : "");
     c.tabIndex = 0;
     const isCurrent = CTX.current && CTX.current.id === r.id && CTX.current.kind === r.kind;
-    c.innerHTML = `<div class="poster">${r.poster ? `<img loading="lazy" alt="">` : `<div class="none"></div>`}<span class="badge">${r.kind === "Movie" ? "Movie" : "TV"}</span>${isCurrent ? '<span class="badge cur">Current</span>' : ""}</div><div class="t"></div><div class="y"></div>`;
-    if (r.poster) { const img = c.querySelector("img"); img.onload = () => img.classList.add("ok"); img.src = r.poster; }
+    c.innerHTML = `<div class="poster">${r.poster ? `<img loading="lazy" alt="">` : `<div class="none"></div>`}<span class="badge">${r.kind === "Movie" ? "Movie" : "TV"}</span>${isCurrent ? '<span class="badge cur">Current</span>' : ""}<span class="selmark"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-4.7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div><div class="t"></div><div class="y"></div>`;
+    if (r.poster) {
+      const img = c.querySelector("img");
+      img.decoding = "async";
+      img.onload = () => {
+        img.classList.add("ok");
+        // Cached posters land within the grid's own entrance and ride in with it; a second fade would only delay them.
+        if (performance.now() - gridAt < 120) return;
+        img.animate(calm() ? { opacity: [0, 1] } : { opacity: [0, 1], transform: ["scale(1.04)", "none"] }, { duration: 320, easing: EASE });
+      };
+      img.src = r.poster;
+    }
     else c.querySelector(".none").textContent = r.title;
     c.querySelector(".t").textContent = r.title;
     for (const part of [r.year, r.original].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; c.querySelector(".y").appendChild(sp); }
@@ -399,15 +459,46 @@ function choose(r) {
   selected = r; seasons = null;
   decoder.setText(r.year ? `${r.title} (${r.year})` : r.title);
   document.querySelectorAll(".card").forEach((c, i) => c.classList.toggle("sel", results[i] === r));
-  const tmdb = `https://www.themoviedb.org/${r.kind === "Movie" ? "movie" : "tv"}/${r.id}`;
-  $("pick").innerHTML = `<div class="pick"><div class="p">${r.poster ? `<img src="${esc(r.poster)}">` : ""}</div><div class="body"><h2></h2><div class="meta"></div><div class="ov"></div><a href="#" id="tmdbLink">View on TMDB</a></div></div>`;
-  $("pick").querySelector("h2").textContent = r.title;
-  for (const part of [r.kind === "Movie" ? "Movie" : "TV show", r.year].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; $("pick").querySelector(".meta").appendChild(sp); }
-  $("pick").querySelector(".ov").textContent = r.overview || "";
-  $("tmdbLink").onclick = e => { e.preventDefault(); post({ type: "open", url: tmdb }); };
+  renderPick(r);
   if (r.kind === "Episode") post({ type: "seasons", id: r.id });
   renderEpisode();
   $("apply").disabled = false;
+}
+
+// The "Selected" panel. Timeline: the first pick rises in (220ms); after that the panel stays put,
+// the old poster dims while the new one loads and then swaps (220ms), and the text rises in (160ms).
+function renderPick(r) {
+  const box = $("pick");
+  let pk = box.querySelector(".pick");
+  const first = !pk;
+  if (first) {
+    box.innerHTML = `<div class="pick"><div class="p"><img alt=""></div><div class="body"><h2></h2><div class="meta"></div><div class="ov"></div><a href="#" id="tmdbLink">View on TMDB</a></div></div>`;
+    pk = box.querySelector(".pick");
+  }
+  const img = pk.querySelector(".p img");
+  const url = r.poster || "";
+  img.dataset.want = url;
+  if (!url) { img.classList.remove("fade"); img.removeAttribute("src"); img.hidden = true; }
+  else if (img.getAttribute("src") !== url) {
+    if (first || img.hidden) { img.hidden = false; img.src = url; }
+    else {
+      img.classList.add("fade");
+      const pre = new Image();
+      const done = ok => { if (img.dataset.want !== url) return; if (ok) img.src = url; img.classList.remove("fade"); };
+      pre.onload = () => done(true);
+      pre.onerror = () => done(false);
+      pre.src = url;
+    }
+  }
+  const body = pk.querySelector(".body");
+  body.querySelector("h2").textContent = r.title;
+  const meta = body.querySelector(".meta");
+  meta.textContent = "";
+  for (const part of [r.kind === "Movie" ? "Movie" : "TV show", r.year].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; meta.appendChild(sp); }
+  body.querySelector(".ov").textContent = r.overview || "";
+  const tmdb = `https://www.themoviedb.org/${r.kind === "Movie" ? "movie" : "tv"}/${r.id}`;
+  $("tmdbLink").onclick = e => { e.preventDefault(); post({ type: "open", url: tmdb }); };
+  if (first) rise(pk, 6, 220); else rise(body);
 }
 
 // ---- exact episode (TV, this file only)
@@ -415,7 +506,9 @@ const ge = CTX.guess_episode;
 $("fromFileLabel").textContent = ge && ge.episode ? `Use the number in the file name (S${ge.season} - E${ge.episode})` : "Use the number in the file name";
 function renderEpisode() {
   const show = selected && selected.kind === "Episode" && scope === "file";
-  $("episodeBox").style.display = show ? "" : "none";
+  const box = $("episodeBox"), was = box.style.display !== "none";
+  box.style.display = show ? "" : "none";
+  if (show && !was) rise(box, 6, 200);
   const manual = !$("fromFile").checked;
   $("season").disabled = !manual || !seasons;
   $("episode").disabled = !manual;
@@ -473,6 +566,7 @@ window.__results = data => {
   if (data.query !== undefined && data.query !== lastQuery) return; // stale
   results = data.error ? { error: data.error } : data.results || [];
   renderGrid();
+  enterGrid();
 };
 
 document.addEventListener("keydown", e => {
@@ -492,6 +586,7 @@ $("q").focus(); $("q").select();
 
 // ---- decode: what's being matched unscrambles out of the background (bgfx.js)
 // The file's name first, then whatever you search for, then the title you pick.
+Bgfx.setOpacity(CTX.background_opacity);
 Bgfx.use(decoder);
 Bgfx.setOn(CTX.animated_background !== false);
 decoder.setText(CTX.query || CTX.file);

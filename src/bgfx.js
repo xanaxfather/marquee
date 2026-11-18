@@ -1,7 +1,7 @@
 // Animated ASCII backgrounds, shared by Settings, the artwork picker and
 // Fix Match (webwin.rs puts this file in place of each page's BGFX marker).
 //
-// One canvas behind the page at 30%. A pattern fills a character grid
+// One canvas behind the page, 30% by default (the `background_opacity` setting). A pattern fills a character grid
 // (glyph + brightness 0..3) for tick t; it's drawn ten times a second, one
 // fillText per row per brightness. Nothing runs while the window is hidden
 // or the setting is off, and Reduce Motion gets a single still frame.
@@ -19,6 +19,8 @@ const STILL_T = 64; // the frame shown under Reduce Motion
 const reduce = matchMedia("(prefers-reduced-motion: reduce)");
 const s = { cols: 0, rows: 0, vcols: 0, vrows: 0, cw: 7.2, ch: 14, glyph: [], level: null };
 let cv = null, g = null, pattern = null, on = false, timer = 0, t = 0;
+// How strongly the canvas shows: the `background_opacity` setting, set by each page.
+let opacity = 0.3;
 
 function size() {
   const dpr = devicePixelRatio || 1, w = innerWidth, h = innerHeight;
@@ -70,7 +72,7 @@ function refresh() {
 function mount() {
   if (cv) return;
   const style = document.createElement("style");
-  style.textContent = "#bgfx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; opacity: 0.3; }"
+  style.textContent = "#bgfx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }"
     + " #bgfx[hidden] { display: none; } .app { position: relative; z-index: 1; }"
     // Text drawn straight on the pattern gets a soft halo of the page colour, so
     // the characters behind it never run into the letters.
@@ -79,6 +81,7 @@ function mount() {
   document.head.appendChild(style);
   cv = document.createElement("canvas");
   cv.id = "bgfx"; cv.hidden = true; cv.setAttribute("aria-hidden", "true");
+  cv.style.opacity = String(opacity);
   document.body.prepend(cv);
   g = cv.getContext("2d");
   size();
@@ -316,6 +319,13 @@ return {
     refresh();
   },
   setOn(v) { on = !!v; mount(); refresh(); },
+  /** How strongly the pattern shows, in percent (5–100); anything else keeps the current value. */
+  setOpacity(percent) {
+    const p = Number(percent);
+    if (!Number.isFinite(p)) return;
+    opacity = Math.min(100, Math.max(5, p)) / 100;
+    if (cv) cv.style.opacity = String(opacity);
+  },
   loadImage, artwork, decode, aquarium, sky,
 };
 })();
