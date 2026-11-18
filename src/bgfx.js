@@ -71,7 +71,11 @@ function mount() {
   if (cv) return;
   const style = document.createElement("style");
   style.textContent = "#bgfx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; opacity: 0.3; }"
-    + " #bgfx[hidden] { display: none; } .app { position: relative; z-index: 1; }";
+    + " #bgfx[hidden] { display: none; } .app { position: relative; z-index: 1; }"
+    // Text drawn straight on the pattern gets a soft halo of the page colour, so
+    // the characters behind it never run into the letters.
+    + " body:has(#bgfx:not([hidden])) :is(h1, h2, .lead, .plabel, .dcap, .result, .label, .title, .subtitle, .hint, .urlnote, .empty, .now)"
+    + " { text-shadow: 0 0 2px var(--color-paper), 0 0 6px var(--color-paper), 0 0 12px var(--color-paper); }";
   document.head.appendChild(style);
   cv = document.createElement("canvas");
   cv.id = "bgfx"; cv.hidden = true; cv.setAttribute("aria-hidden", "true");

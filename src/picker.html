@@ -184,7 +184,8 @@ aside {
 .dimg img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity var(--dur-short) var(--ease-out); }
 .dimg img.fade { opacity: 0.3; }
 .dtext { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3xs); }
-.dtext .d { font-weight: 650; overflow-wrap: anywhere; }
+/* Two lines at most (Discord itself cuts it shorter), so a long title can't push the controls below out of view. */
+.dtext .d { font-weight: 650; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dtext .s { color: var(--color-ink-2); font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dtext .s:empty { display: none; }
 .dtext .t { display: flex; align-items: center; gap: var(--space-xs); margin-top: var(--space-3xs); color: var(--color-discord-time); font: 600 var(--text-sm) var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -359,6 +360,12 @@ aside {
 
 <script>
 /*__BGFX__*/
+// An image that fails to load (TMDB removed it, offline, a dead custom link)
+// keeps its placeholder box instead of showing the broken-image icon.
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t instanceof HTMLImageElement && !t.src.startsWith("data:")) t.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+}, true);
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos");
 const $ = id => document.getElementById(id);
@@ -376,8 +383,10 @@ $("subtitle").textContent = CTX.state;
 $("subtitle").title = CTX.state;
 $("app").textContent = "Watching " + CTX.app_name;
 $("pd").textContent = CTX.details;
+$("pd").title = CTX.details || "";
 $("ps").textContent = (CTX.paused ? "Paused · " : "") + CTX.state;
 $("tmdb").onclick = e => { e.preventDefault(); post({ type: "open", url: CTX.tmdb_url }); };
+if (!CTX.tmdb_url) $("tmdb").hidden = true; // nothing to open
 
 function setPreview(url) {
   const img = $("pimg");

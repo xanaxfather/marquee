@@ -240,12 +240,12 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 .chips { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 .chip {
   min-height: 28px; padding: 0 var(--space-sm); border: 1px solid var(--color-rule-strong); border-radius: var(--radius-pill);
-  background: transparent; color: var(--color-ink-2); font-size: var(--text-sm); cursor: pointer;
+  background: var(--color-paper); color: var(--color-ink-2); font-size: var(--text-sm); cursor: pointer; /* opaque: the animated background sits behind */
   transition: background-color var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out);
 }
 .chip:hover { background: var(--color-paper-3); color: var(--color-ink); }
 .chip:active { background: var(--color-paper-4); transform: scale(0.96); }
-.chip.on { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-ink); }
+.chip.on { background: linear-gradient(var(--color-accent-soft), var(--color-accent-soft)), var(--color-paper); border-color: var(--color-accent); color: var(--color-ink); }
 .chip.code { font-family: var(--font-mono); font-size: var(--text-xs); border-radius: var(--radius-control); padding: 0 var(--space-xs); min-height: 26px; }
 
 .tags {
@@ -295,7 +295,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
   box-shadow: inset 0 0 0 1.5px var(--color-muted); transition: box-shadow var(--dur-micro) var(--ease-out);
 }
 .choice label:hover { border-color: var(--color-rule-hover); }
-.choice label.on { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.choice label.on { border-color: var(--color-accent); background: linear-gradient(var(--color-accent-soft), var(--color-accent-soft)), var(--color-paper-2); }
 .choice label.on::before { box-shadow: inset 0 0 0 5px var(--color-accent), inset 0 0 0 16px var(--color-accent-ink); }
 .choice label:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .choice input { position: absolute; opacity: 0; pointer-events: none; }
@@ -790,6 +790,12 @@ h2 .h2note { margin-left: var(--space-xs); color: var(--color-muted); font-weigh
 
 <script>
 /*__BGFX__*/
+// An image that fails to load (TMDB removed it, offline, a dead custom link)
+// keeps its placeholder box instead of showing the broken-image icon.
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t instanceof HTMLImageElement && !t.src.startsWith("data:")) t.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+}, true);
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos", "js");
 const $ = id => document.getElementById(id);
@@ -1157,6 +1163,7 @@ function tagList(box, key, normalize = s => s) {
       t.className = "tag keep-case";
       t.innerHTML = `<span></span><button title="Remove">×</button>`;
       t.firstChild.textContent = v;
+      t.title = v; // long titles and paths are cut short in the chip
       t.lastChild.onclick = () => { set(key, (cfg[key] || []).filter(x => x !== v)); render(); };
       box.insertBefore(t, input);
     }
@@ -1204,7 +1211,7 @@ const RULE_PLAYERS = CTX.platform === "windows"
 for (const p of RULE_PLAYERS) { const o = document.createElement("option"); o.value = p; $("rulePlayers").appendChild(o); }
 const cleanText = v => String(v ?? "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
 let ruleRows = [];
-function loadRules() { ruleRows = (Array.isArray(cfg.rules) ? cfg.rules : []).map(r => ({ player: cleanText(r.player), folder: cleanText(r.folder), action: r.action || "never" })); }
+function loadRules() { ruleRows = (Array.isArray(cfg.rules) ? cfg.rules : []).map(r => ({ player: cleanText(r.player), folder: cleanText(r.folder), action: ["never", "generic", "always"].includes(r.action) ? r.action : "never" })); }
 function saveRules() {
   // A rule with neither a folder nor a player would match nothing; it stays on screen but isn't saved.
   set("rules", ruleRows
@@ -1287,8 +1294,10 @@ function renderWatchers() {
 }
 
 // ------------------------------------------------------------ History
-const dur = s => { const m = Math.round(s / 60); if (m < 1) return "0m"; const h = Math.floor(m / 60); return h ? `${h}h ${m % 60}m` : `${m}m`; };
+// Same as the Stats figures: NaN-safe, grouped, and capped for nonsense totals.
+const dur = s => hm(s);
 const ago = t => {
+  if (typeof t !== "number" || !Number.isFinite(t) || t <= 0) return "";
   const d = Date.now() / 1000 - t;
   if (d < 90) return "just now";
   if (d < 3600) return Math.round(d / 60) + " min ago";
@@ -1300,7 +1309,7 @@ let hist = CTX.history || [];
 function renderHistory() {
   setFigure($("stWeek"), dur(computeStats(hist).thisWeek));
   setFigure($("stTotal"), dur(hist.reduce((a, e) => a + num(e.watched), 0)));
-  setFigure($("stTitles"), nf(new Set(hist.map(e => e.title)).size));
+  setFigure($("stTitles"), nf(new Set(hist.map(e => String(e.title || "").trim()).filter(Boolean)).size));
   const q = $("hsearch").value.trim().toLowerCase();
   const list = hist.filter(e => !q || (e.title + " " + (e.episode_title || "")).toLowerCase().includes(q));
   const host = $("hlist");
@@ -1312,9 +1321,10 @@ function renderHistory() {
     const p = e.position != null && e.duration ? Math.min(1, e.position / e.duration) : null;
     row.innerHTML = `${e.image ? '<img class="hthumb" loading="lazy">' : '<div class="hthumb"></div>'}
       <div class="htxt"><b></b><small class="sub"></small><small class="when"></small>${p != null ? `<div class="prog"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ""}</div>
-      <div class="hacts">${e.path ? '<button class="btn small play">Play</button>' : ""}${e.tmdb_url ? '<button class="btn small tmdb">TMDB</button>' : ""}<button class="btn small icon rm" title="Remove from hist">✕</button></div>`;
+      <div class="hacts">${e.path ? '<button class="btn small play">Play</button>' : ""}${e.tmdb_url ? '<button class="btn small tmdb">TMDB</button>' : ""}<button class="btn small icon rm" title="Remove from history">✕</button></div>`;
     if (e.image && /^https:/.test(e.image)) row.querySelector("img").src = e.image;
-    row.querySelector("b").textContent = e.label ? `${e.title} · ${e.label}` : e.year ? `${e.title} (${e.year})` : e.title;
+    const title = String(e.title || "").trim() || "Untitled";
+    row.querySelector("b").textContent = e.label ? `${title} · ${e.label}` : e.year ? `${title} (${e.year})` : title;
     row.querySelector(".sub").textContent = e.episode_title || (e.kind ? "" : "Not identified");
     for (const part of [ago(e.last_watched), dur(e.watched) + " watched", e.player].filter(Boolean)) { const sp = document.createElement("span"); sp.textContent = part; row.querySelector(".when").appendChild(sp); }
     const play = row.querySelector(".play"); if (play) play.onclick = () => post({ type: "open_file", path: e.path });
@@ -1630,6 +1640,18 @@ $("reconnect").onclick = () => post({ type: "reconnect" });
 $("rerunWelcome").onclick = () => openWelcome();
 $("checkUpdate").onclick = () => { $("updSub").textContent = "Checking…"; post({ type: "check_update" }); };
 $("installUpdate").onclick = () => { $("installUpdate").disabled = true; $("installUpdate").textContent = "Downloading…"; post({ type: "install_update" }); };
+// Release notes come as Markdown; show them as plain text without the markup.
+function plainNotes(md) {
+  return String(md || "")
+    .replace(/\r/g, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "• ")
+    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 window.__update = u => {
   $("updDot").style.display = u && u.version ? "" : "none";
   $("installUpdate").style.display = u && u.version ? "" : "none";
@@ -1638,7 +1660,7 @@ window.__update = u => {
     $("updTitle").textContent = `Marquee ${u.version} is available`;
     $("updSub").textContent = u.asset ? "Installs in a few seconds, then Marquee restarts." : "Opens the download page.";
     $("installUpdate").textContent = u.asset ? "Install and Restart" : "Download";
-    $("updNotes").textContent = u.notes || "";
+    $("updNotes").textContent = plainNotes(u.notes);
   } else if (u && u.error) {
     $("updTitle").textContent = "Couldn’t check for updates";
     $("updSub").textContent = u.error;
@@ -1684,7 +1706,8 @@ renderPreview();
 const bgStill = Bgfx.artwork();
 const PATTERNS = { still: bgStill, aquarium: Bgfx.aquarium, sky: Bgfx.sky };
 window.bgApply = () => {
-  Bgfx.use(PATTERNS[cfg.background] || bgStill);
+  if (!PATTERNS[cfg.background]) { cfg.background = "still"; $("bgStyle").value = "still"; }
+  Bgfx.use(PATTERNS[cfg.background]);
   Bgfx.setOn(cfg.animated_background);
   $("bgStyle").disabled = !cfg.animated_background;
 };

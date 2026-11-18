@@ -203,11 +203,13 @@ aside {
 .btn:disabled, .btn:disabled:hover { background: var(--color-paper-2); border-color: var(--color-rule); color: var(--color-muted); cursor: not-allowed; transform: none; }
 .btn.primary { min-height: 40px; background: var(--color-accent); border-color: transparent; color: var(--color-accent-ink); font-size: var(--text-lg); }
 .btn.primary:hover { background: var(--color-accent-hi); }
+.btn.primary:disabled, .btn.primary:disabled:hover { background: var(--color-paper-3); border-color: transparent; color: var(--color-muted); }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--color-muted); }
 .btn.ghost:hover { color: var(--color-ink); background: var(--color-paper-3); }
 .btn.ghost:disabled, .btn.ghost:disabled:hover { background: transparent; border-color: transparent; color: var(--color-muted); cursor: not-allowed; }
 .spacer { flex: 1; }
-.actions { display: grid; gap: var(--space-2xs); }
+/* Pinned to the bottom of the panel, so a long title or the episode picker never pushes it out of view. */
+.actions { position: sticky; bottom: calc(var(--space-lg) * -1); z-index: 1; display: grid; gap: var(--space-2xs); margin: 0 calc(var(--space-lg) * -1) calc(var(--space-lg) * -1); padding: var(--space-sm) var(--space-lg) var(--space-lg); background: var(--color-well); box-shadow: 0 -16px 16px -8px var(--color-well); }
 
 .toast {
   position: fixed; left: 50%; bottom: var(--space-lg); z-index: var(--z-modal); display: flex; align-items: center; gap: var(--space-xs);
@@ -298,6 +300,12 @@ aside {
 
 <script>
 /*__BGFX__*/
+// An image that fails to load (TMDB removed it, offline, a dead custom link)
+// keeps its placeholder box instead of showing the broken-image icon.
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t instanceof HTMLImageElement && !t.src.startsWith("data:")) t.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+}, true);
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos");
 const $ = id => document.getElementById(id);
@@ -311,6 +319,7 @@ let scope = CTX.override_scope || "file";
 // ---- header
 $("file").innerHTML = "File: <code></code>";
 $("file").querySelector("code").textContent = CTX.file || CTX.path;
+$("file").title = CTX.path || CTX.file || ""; // the name is cut short when long
 if (CTX.current) {
   const c = CTX.current;
   const label = [c.title + (c.year && c.kind === "Movie" ? " (" + c.year + ")" : ""), c.label].filter(Boolean).join(" · ");

@@ -88,9 +88,29 @@ git clone https://github.com/xanaxfather/marquee.git && cd marquee
 
 Or download `marquee-macos.zip` from the [latest release](../../releases/latest). Open **Marquee** from Applications. Its icon appears in the menu bar, and a short welcome walks you through setup.
 
+#### "Apple could not verify Marquee" (Gatekeeper)
+
+The first time you open the downloaded app, macOS may refuse with a warning like **"Marquee" Not Opened: Apple could not verify "Marquee" is free of malware**, or **"Marquee" can't be opened because Apple cannot check it for malicious software**.
+
+That warning is not a virus detection. macOS shows it for any app whose developer hasn't paid for an Apple Developer ID and sent each build to Apple to be notarized. Marquee is free and open source: every line of code is in this repository, the release builds are made by [GitHub Actions](../../actions/workflows/release.yml) straight from this source, and it never asks for your password. It only talks to Discord, TMDB, and GitHub (to check for updates). If you'd rather not trust a download at all, [build it yourself](#building-from-source) in two commands.
+
+To open it anyway (you only need to do this once):
+
+1. Move **Marquee.app** to Applications and double-click it. When the warning appears, click **Done** (or **Cancel**).
+2. Open **System Settings → Privacy & Security** and scroll down to **Security**. You'll see *"Marquee" was blocked to protect your Mac*.
+3. Click **Open Anyway**, confirm with your password or Touch ID, then click **Open Anyway** once more.
+
+On macOS 14 (Sonoma) and earlier, **right-click** (or Control-click) Marquee.app, choose **Open**, then click **Open** in the dialog.
+
+Or, from Terminal, remove the download flag macOS puts on the app:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Marquee.app
+```
+
 ### Windows
 
-Download `marquee-windows-x64.zip` from the [latest release](../../releases/latest), unzip it anywhere, and run `marquee.exe`. Its icon appears in the system tray (it may be in the overflow area at first; drag it out to keep it visible). To build it yourself, see [Building from source](#building-from-source).
+Download `marquee-windows-x64.zip` from the [latest release](../../releases/latest), unzip it anywhere, and run `marquee.exe`. If Windows shows **Windows protected your PC** (SmartScreen does this for apps without a paid code-signing certificate), click **More info → Run anyway**. Its icon appears in the system tray (it may be in the overflow area at first; drag it out to keep it visible). To build it yourself, see [Building from source](#building-from-source).
 
 > [!TIP]
 > Turn on **Launch at login** (macOS) or **Start with Windows** in **Settings… → General** so Marquee is always running.
