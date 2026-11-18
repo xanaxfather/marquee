@@ -8,6 +8,7 @@ use crate::paths;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static LOWERCASE: AtomicBool = AtomicBool::new(false);
+static ANIMATED_BACKGROUND: AtomicBool = AtomicBool::new(true);
 
 pub fn set_lowercase(on: bool) {
     LOWERCASE.store(on, Ordering::Relaxed);
@@ -15,6 +16,15 @@ pub fn set_lowercase(on: bool) {
 
 pub fn lowercase() -> bool {
     LOWERCASE.load(Ordering::Relaxed)
+}
+
+/// The faint ASCII pattern behind Marquee's windows (`animated_background`).
+pub fn set_animated_background(on: bool) {
+    ANIMATED_BACKGROUND.store(on, Ordering::Relaxed);
+}
+
+pub fn animated_background() -> bool {
+    ANIMATED_BACKGROUND.load(Ordering::Relaxed)
 }
 
 /// `s` in the chosen case.

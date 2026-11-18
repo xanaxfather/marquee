@@ -58,6 +58,7 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 - **Rules per player and folder.** Never show a folder, show a player without the title, or always show something your privacy lists would hide. Files a rule covers this way are never looked up on TMDB.
 - **Moves with you.** Export settings, rules, Fix Match and artwork choices to one file and import them on another computer, merging or replacing. Your TMDB key stays out unless you include it.
 - **Uses episode stills.** You can switch any episode, season or show to a different still, poster, backdrop or your own image from the artwork picker.
+- **A moving backdrop for Settings.** A faint ASCII pattern behind the Settings window: the artwork of what you're watching drawn in characters, an aquarium, or a night sky. Turn it off or pick one in General; it holds still when Reduce Motion is on.
 - **Stays out of the way.** About 16 MB of memory and no CPU while idle. Metadata is cached, and Discord or player restarts are handled without you doing anything.
 
 ## Supported players
@@ -252,6 +253,8 @@ Everything is in **Settings…**. The same options live in a commented config fi
 | `small_image_playing` / `_paused` | Marquee's play/pause badges | Corner badge (asset key or URL, `""` for none) |
 | `fallback_image` | | Image used when nothing is identified |
 | `lowercase` | `false` | All-lowercase look for the Discord card, menu and notifications |
+| `animated_background` | `true` | Faint animated pattern behind the Settings window (only runs while it's open and visible) |
+| `background` | `still` | `still` (artwork of what's playing, or last watched, as characters), `aquarium` or `sky` |
 | `ipc_socket` | `/tmp/marquee-iina.sock` | IINA's mpv socket |
 | `mpv_ipc` | `/tmp/marquee-mpv.sock` · `\\.\pipe\marquee-mpv` | mpv / mpv.net endpoint |
 | `vlc_port` / `vlc_password` | `8080` / generated | VLC web interface |

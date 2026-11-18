@@ -297,12 +297,14 @@ aside {
 <div class="toast" id="toast"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path class="tick" d="M4.5 8.3l2.2 2.2 4.8-4.8" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastText"></span></div>
 
 <script>
+/*__BGFX__*/
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos");
 const $ = id => document.getElementById(id);
 const post = m => window.ipc.postMessage(JSON.stringify(m));
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+const decoder = Bgfx.decode();
 let kind = "multi", results = null, selected = null, seasons = null, lastQuery = "";
 let scope = CTX.override_scope || "file";
 
@@ -344,6 +346,7 @@ function search() {
   const q = $("q").value.trim();
   lastQuery = q;
   if (!q) { results = []; renderGrid(); return; }
+  if (!selected) decoder.setText(q);
   results = null; renderGrid();
   post({ type: "search", query: q, kind });
 }
@@ -385,6 +388,7 @@ function renderGrid() {
 
 function choose(r) {
   selected = r; seasons = null;
+  decoder.setText(r.year ? `${r.title} (${r.year})` : r.title);
   document.querySelectorAll(".card").forEach((c, i) => c.classList.toggle("sel", results[i] === r));
   const tmdb = `https://www.themoviedb.org/${r.kind === "Movie" ? "movie" : "tv"}/${r.id}`;
   $("pick").innerHTML = `<div class="pick"><div class="p">${r.poster ? `<img src="${esc(r.poster)}">` : ""}</div><div class="body"><h2></h2><div class="meta"></div><div class="ov"></div><a href="#" id="tmdbLink">View on TMDB</a></div></div>`;
@@ -476,6 +480,12 @@ renderGrid();
 post({ type: "ready" });
 search();
 $("q").focus(); $("q").select();
+
+// ---- decode: what's being matched unscrambles out of the background (bgfx.js)
+// The file's name first, then whatever you search for, then the title you pick.
+Bgfx.use(decoder);
+Bgfx.setOn(CTX.animated_background !== false);
+decoder.setText(CTX.query || CTX.file);
 </script>
 </body>
 </html>

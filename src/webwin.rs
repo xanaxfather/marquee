@@ -54,6 +54,28 @@ fn release_app() {
     }
 }
 
+/// macOS: these are utility windows, so keep them out of full screen (the green
+/// button zooms instead). Closing one mid full-screen transition (Escape in full
+/// screen closes the page) destroyed the web view while WebKit's display link
+/// still pointed at it, and the app crashed in
+/// `RemoteLayerTreeDrawingAreaProxyMac::displayLink`.
+#[cfg(target_os = "macos")]
+fn no_full_screen(window: &Window) {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use tao::platform::macos::WindowExtMacOS;
+    const FULL_SCREEN_PRIMARY: usize = 1 << 7;
+    const FULL_SCREEN_NONE: usize = 1 << 9;
+    let ns_window = window.ns_window() as *mut AnyObject;
+    if ns_window.is_null() {
+        return;
+    }
+    unsafe {
+        let behavior: usize = msg_send![ns_window, collectionBehavior];
+        let _: () = msg_send![ns_window, setCollectionBehavior: (behavior & !FULL_SCREEN_PRIMARY) | FULL_SCREEN_NONE];
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 fn activate_app() {}
 #[cfg(not(target_os = "macos"))]
@@ -129,13 +151,18 @@ impl WebWindow {
             }
         };
         let window = Rc::new(builder.build(el)?);
+        #[cfg(target_os = "macos")]
+        no_full_screen(&window);
 
         let mut ctx = spec.ctx;
         ctx["platform"] = serde_json::json!(if cfg!(windows) { "windows" } else { "macos" });
         ctx["lowercase"] = serde_json::json!(crate::style::lowercase());
+        ctx["animated_background"] = serde_json::json!(crate::style::animated_background());
         // `</` would end the inline <script> early.
         let ctx = ctx.to_string().replace("</", "<\\/");
-        let mut html = spec.html.replacen("/*__CTX__*/null", &ctx, 1);
+        // The shared background first, so nothing in `ctx` is mistaken for its marker.
+        let mut html =
+            spec.html.replacen("/*__BGFX__*/", include_str!("bgfx.js"), 1).replacen("/*__CTX__*/null", &ctx, 1);
         if crate::style::lowercase() {
             // Typed text keeps its case.
             html = html.replacen(

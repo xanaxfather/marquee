@@ -86,7 +86,7 @@ code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 nav {
   position: relative; display: flex; flex-direction: column; gap: var(--space-3xs);
   padding: 52px var(--space-sm) var(--space-md);
-  background: var(--color-well); border-right: 1px solid var(--color-rule);
+  background: oklch(13.5% 0.01 274 / 0.8); border-right: 1px solid var(--color-rule); /* the well, letting the background through */
 }
 .brand {
   display: flex; align-items: center; gap: var(--space-sm);
@@ -351,7 +351,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 
 /* ---------- history ---------- */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 var(--space-xl); border-top: 1px solid var(--color-rule); border-bottom: 1px solid var(--color-rule); }
-.stat { display: flex; flex-direction: column-reverse; gap: var(--space-3xs); padding: var(--space-md) 0 var(--space-md) var(--space-lg); }
+.stat { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: var(--space-3xs); padding: var(--space-md) 0 var(--space-md) var(--space-lg); }
 .stat:first-child { padding-left: 0; }
 .stat + .stat { border-left: 1px solid var(--color-rule); }
 .stat b { min-height: 1.05em; font-family: var(--font-display); font-weight: 500; font-size: var(--text-3xl); line-height: 1.05; font-variant-numeric: tabular-nums lining-nums; letter-spacing: -0.01em; }
@@ -376,8 +376,14 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 /* ---------- stats ---------- */
 .stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stat b { overflow-wrap: anywhere; }
-.stat .delta { min-height: 1.4em; margin-top: var(--space-3xs); font-size: var(--text-xs); }
-.stat .delta.up { color: var(--color-success); }
+/* The display face's numerals carry left side-bearing that reads as an indent at this size; pull them back so the figure lines up with its label. */
+.stat b { margin-left: -0.05em; }
+.stat .delta { margin-top: var(--space-3xs); font-size: var(--text-xs); color: var(--color-muted); opacity: 0.85; }
+.stat .delta:empty { display: none; }
+/* Units ride along at half size so the number carries the tile. */
+.stat b .u { margin-left: 0.04em; font-size: 0.5em; color: var(--color-ink-2); letter-spacing: 0; }
+.stat b .u + .n { margin-left: 0.22em; }
+.stat b .u.word { margin-left: 0.2em; }
 .chart { margin-bottom: var(--space-xs); }
 .cbars {
   display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-xs); align-items: end;
@@ -399,6 +405,10 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 .top .hthumb { width: 32px; height: 48px; }
 .top .prog { width: 100%; max-width: 320px; }
 .top .time { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-ink-2); font-weight: 550; font-variant-numeric: tabular-nums; }
+
+h2 .h2note { margin-left: var(--space-xs); color: var(--color-muted); font-weight: 400; }
+.top.solo .prog { display: none; }
+#statsNote:empty { display: none; }
 
 /* ---------- rules ---------- */
 .rule { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "folder folder folder" "player action rm"; gap: var(--space-xs); padding-block: var(--space-sm); }
@@ -524,6 +534,9 @@ input[type=number] { font-variant-numeric: tabular-nums; }
         <div class="item"><div class="txt"><b id="loginLabel">Launch at login</b><small>Start Marquee in the background when you sign in.</small></div><label class="sw"><input type="checkbox" id="login"><span></span></label></div>
         <div class="item"><div class="txt"><b>Check for updates</b><small>Look for a new version once a day.</small></div><label class="sw"><input type="checkbox" data-k="check_updates"><span></span></label></div>
         <div class="item"><div class="txt"><b>All-lowercase look</b><small>The Discord card, menu and windows in lowercase.</small></div><label class="sw"><input type="checkbox" data-k="lowercase"><span></span></label></div>
+        <div class="item"><div class="txt"><b>Animated background</b><small>A faint moving pattern behind this window. Still when Reduce Motion is on.</small></div><label class="sw"><input type="checkbox" data-k="animated_background" id="bgToggle"><span></span></label></div>
+        <div class="item"><div class="txt"><b>Background</b><small>Still draws what you're watching, or watched last.</small></div>
+          <select data-k="background" id="bgStyle"><option value="still">Still</option><option value="aquarium">Aquarium</option><option value="sky">Night sky</option></select></div>
       </div>
     </section>
 
@@ -662,7 +675,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
         </div>
         <h2>Last 12 weeks</h2>
         <div class="chart" id="weekChart"><div class="cbars" id="cbars" role="list"></div><div class="clabs" id="clabs" aria-hidden="true"></div></div>
-        <h2>Most watched</h2>
+        <h2>Most watched <span class="h2note">All time</span></h2>
         <div class="group top hlist" id="topList"></div>
         <p class="lead note" id="statsNote"></p>
       </div>
@@ -776,6 +789,7 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 </div>
 
 <script>
+/*__BGFX__*/
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos", "js");
 const $ = id => document.getElementById(id);
@@ -840,6 +854,7 @@ function syncControls() {
     if (el.type === "checkbox") el.checked = !!cfg[k];
     else el.value = cfg[k] ?? "";
   }
+  if (window.bgApply) bgApply();
 }
 for (const el of $$("[data-k]")) {
   const k = el.dataset.k;
@@ -932,7 +947,6 @@ $$("nav button").forEach(b => b.onclick = () => show(b.dataset.s));
 window.__section = s => show(s);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("importDlg").classList.contains("on")) { closeImport(); return; }
-  if (e.key === "Escape" && !$("welcome").classList.contains("on")) post({ type: "close" });
   if ((e.metaKey || e.ctrlKey) && e.key === "w") post({ type: "close" });
 });
 // Drag the window by empty areas (macOS has no visible title bar).
@@ -1284,9 +1298,9 @@ const ago = t => {
 };
 let hist = CTX.history || [];
 function renderHistory() {
-  $("stWeek").textContent = dur(computeStats(hist).thisWeek);
-  $("stTotal").textContent = dur(hist.reduce((a, e) => a + e.watched, 0));
-  $("stTitles").textContent = new Set(hist.map(e => e.title)).size;
+  setFigure($("stWeek"), dur(computeStats(hist).thisWeek));
+  setFigure($("stTotal"), dur(hist.reduce((a, e) => a + num(e.watched), 0)));
+  setFigure($("stTitles"), nf(new Set(hist.map(e => e.title)).size));
   const q = $("hsearch").value.trim().toLowerCase();
   const list = hist.filter(e => !q || (e.title + " " + (e.episode_title || "")).toLowerCase().includes(q));
   const host = $("hlist");
@@ -1394,6 +1408,17 @@ function shortH(secs) {
   return h < 10 ? nf(h, { maximumFractionDigits: 1 }) + "h" : h >= 1000 ? bigHours(h) : nf(Math.round(h)) + "h";
 }
 const dayCount = n => `${nf(n)} ${n === 1 ? "day" : "days"}`;
+// "6h 20m" → big numbers, small units. Text only, so titles or odd data can't inject markup.
+function setFigure(el, text) {
+  el.textContent = "";
+  for (const m of String(text).matchAll(/([<\d][\d.,\u00a0\u202f]*[KMBT+]*)|([^\d<\s]+)/g)) {
+    const sp = document.createElement("span");
+    sp.className = m[1] ? "n" : m[0].length > 1 ? "u word" : "u";
+    sp.textContent = m[0];
+    el.appendChild(sp);
+  }
+  el.setAttribute("aria-label", text);
+}
 function renderStats() {
   const st = computeStats(hist);
   const body = $("statsBody"), empty = $("statsEmpty");
@@ -1408,14 +1433,13 @@ function renderStats() {
     if (on) on.onclick = () => { set("history", true, { now: true }); syncControls(); renderStats(); };
     return;
   }
-  $("sWeek").textContent = hm(st.thisWeek);
-  $("sLast").textContent = hm(st.lastWeek);
-  const diff = st.thisWeek - st.lastWeek, delta = $("sDelta");
-  delta.className = "delta" + (diff >= 60 ? " up" : "");
-  delta.textContent = Math.abs(diff) < 60 ? "Same as last week" : `${hm(Math.abs(diff))} ${diff > 0 ? "more" : "less"} than last week`;
-  $("sStreak").textContent = dayCount(st.current);
-  $("sBest").textContent = dayCount(Math.max(st.longest, st.current));
-  $("sStreakNote").textContent = st.current === 0 ? "" : st.watchedToday ? "Including today" : "Watch today to keep it going";
+  setFigure($("sWeek"), hm(st.thisWeek));
+  setFigure($("sLast"), hm(st.lastWeek));
+  const diff = st.thisWeek - st.lastWeek;
+  $("sDelta").textContent = Math.abs(diff) < 60 ? "Same as last week" : `${diff > 0 ? "↑" : "↓"} ${hm(Math.abs(diff))} on last week`;
+  setFigure($("sStreak"), dayCount(st.current));
+  setFigure($("sBest"), dayCount(Math.max(st.longest, st.current)));
+  $("sStreakNote").textContent = st.current === 0 ? "" : st.watchedToday ? "Including today" : "Through yesterday";
 
   const max = Math.max(...st.weeks.map(w => w.secs), 1);
   const fmtWeek = ms => new Date(ms).toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -1460,8 +1484,8 @@ function renderStats() {
     row.querySelector(".time").textContent = hm(g.secs);
     host.appendChild(row);
   });
-  $("statsNote").textContent = (cfg.history ? "" : "Watch history is off, so these numbers stop at what was already recorded. ")
-    + "Most watched counts all the time in your history; older entries from before Stats count on the day they were last watched.";
+  host.classList.toggle("solo", st.top.length < 2);
+  $("statsNote").textContent = cfg.history ? "" : "Watch history is off, so nothing new is being counted.";
 }
 // Bars rise from the baseline in a quick left-to-right wave when Stats opens.
 function growBars() {
@@ -1655,6 +1679,24 @@ loadRules();
 renderRules();
 renderStats();
 renderPreview();
+// ------------------------------------------------------------ animated background
+// The pattern behind the window (bgfx.js): General → App picks it.
+const bgStill = Bgfx.artwork();
+const PATTERNS = { still: bgStill, aquarium: Bgfx.aquarium, sky: Bgfx.sky };
+window.bgApply = () => {
+  Bgfx.use(PATTERNS[cfg.background] || bgStill);
+  Bgfx.setOn(cfg.animated_background);
+  $("bgStyle").disabled = !cfg.animated_background;
+};
+$("bgToggle").addEventListener("change", bgApply);
+$("bgStyle").addEventListener("change", bgApply);
+// Still draws what's playing (if Discord shows it), else the last thing watched.
+Bgfx.loadImage([CTX.artwork, ...(Array.isArray(CTX.history) ? CTX.history : [])
+  .filter(e => e && typeof e.image === "string")
+  .sort((a, b) => (Number(b.last_watched) || 0) - (Number(a.last_watched) || 0))
+  .slice(0, 3).map(e => e.image)], data => bgStill.setImage(data));
+bgApply();
+
 show(CTX.section || "general");
 post({ type: "ready" });
 </script>

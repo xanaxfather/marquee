@@ -31,6 +31,18 @@ pub enum ArtworkMode {
     Backdrop,
 }
 
+/// The ASCII pattern behind the Settings window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Background {
+    /// The artwork of what's playing (or last played), drawn in characters.
+    Still,
+    /// Fish, bubbles and weed.
+    Aquarium,
+    /// Twinkling stars and the odd shooting star.
+    Sky,
+}
+
 /// How a title matched by the privacy lists appears on Discord.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -92,6 +104,9 @@ pub struct Config {
     pub fallback_image: String,
     /// All-lowercase look: Discord card, menu, notifications ("marquee").
     pub lowercase: bool,
+    /// A faint animated pattern behind the Settings window.
+    pub animated_background: bool,
+    pub background: Background,
     pub log_level: String,
 }
 
@@ -138,6 +153,8 @@ impl Default for Config {
             small_image_paused: BADGE_PAUSED.into(),
             fallback_image: String::new(),
             lowercase: false,
+            animated_background: true,
+            background: Background::Still,
             log_level: "info".into(),
         }
     }
@@ -241,6 +258,12 @@ fallback_image = ""
 # ("Watching <name>") comes from the Developer Portal; rename it there too.
 lowercase = false
 
+# A faint animated pattern behind the Settings window (still while Reduce
+# Motion is on). background: still (the artwork of what's playing, in
+# characters) | aquarium | sky
+animated_background = true
+background = "still"
+
 # Check GitHub for new versions once a day.
 check_updates = true
 
@@ -278,6 +301,7 @@ impl Config {
         cfg.discord_client_id = cfg.discord_client_id.trim().to_string();
         cfg.tmdb_api_key = cfg.tmdb_api_key.trim().to_string();
         crate::style::set_lowercase(cfg.lowercase);
+        crate::style::set_animated_background(cfg.animated_background);
         Ok(cfg)
     }
 
@@ -428,5 +452,20 @@ mod tests {
         let cfg: Config = toml::from_str("show_when_paused = true\n").unwrap();
         assert_eq!(cfg.idle_timeout, 15);
         assert!(cfg.rules.is_empty());
+        assert!(cfg.animated_background);
+        assert_eq!(cfg.background, Background::Still);
+    }
+
+    #[test]
+    fn background_settings_round_trip() {
+        let cfg: Config = toml::from_str(TEMPLATE).unwrap();
+        assert!(cfg.animated_background);
+        assert_eq!(cfg.background, Background::Still);
+        let text = set_line(TEMPLATE, "background", "\"sky\"");
+        let text = set_line(&text, "animated_background", "false");
+        let cfg: Config = toml::from_str(&text).unwrap();
+        assert_eq!(cfg.background, Background::Sky);
+        assert!(!cfg.animated_background);
+        assert!(toml::from_str::<Config>(&set_line(TEMPLATE, "background", "\"lava\"")).is_err());
     }
 }

@@ -358,6 +358,7 @@ aside {
 <div class="toast" id="toast"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="currentColor"/><path class="tick" d="M4.5 8.3l2.2 2.2 4.8-4.8" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="toastText"></span></div>
 
 <script>
+/*__BGFX__*/
 const CTX = /*__CTX__*/null;
 document.documentElement.classList.add(CTX.platform || "macos");
 const $ = id => document.getElementById(id);
@@ -525,6 +526,7 @@ function renderGrid() {
 
 function select(url) {
   selected = url;
+  darkroomShow(url);
   document.querySelectorAll(".tile").forEach(t => t.classList.toggle("sel", t.dataset.full === url));
   $("url").classList.remove("bad");
   setPreview(url);
@@ -686,6 +688,19 @@ window.__error = msg => {
 
 renderTabs(); renderGrid(); updateButtons();
 post({ type: "ready" });
+
+// ---- darkroom: the cover you pick develops out of the background (bgfx.js)
+const darkroom = Bgfx.artwork();
+let darkroomUrl = null;
+function darkroomShow(url) {
+  if (!url || url === darkroomUrl) return;
+  darkroomUrl = url;
+  // The thumbnail is enough at this size, and much quicker than the original.
+  Bgfx.loadImage([describe(url).thumb, url], data => { if (darkroomUrl === url) darkroom.setImage(data); });
+}
+Bgfx.use(darkroom);
+Bgfx.setOn(CTX.animated_background !== false);
+darkroomShow(CTX.current || CTX.default);
 </script>
 </body>
 </html>

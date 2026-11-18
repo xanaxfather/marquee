@@ -810,8 +810,14 @@ impl<F: Fn(UiEvent)> Core<F> {
             .into_iter()
             .map(|p| json!({"name": p.name, "installed": p.installed, "ready": p.ready}))
             .collect();
+        // Behind the window, in characters; only what Discord would show too.
+        let artwork = match self.current_media() {
+            Some(m) if self.visibility() == Visibility::Shown => artwork::effective(&self.cfg, &self.artwork, m),
+            _ => None,
+        };
         let ctx = json!({
             "config": self.cfg,
+            "artwork": artwork,
             "version": env!("CARGO_PKG_VERSION"),
             "login": crate::platform::launch_at_login_enabled(),
             "players": players,
