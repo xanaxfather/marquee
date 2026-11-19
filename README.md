@@ -17,9 +17,9 @@ works out the exact movie or episode from the file name, and puts it on your Dis
 
 <br>
 
-<img src="docs/discord-card.png" width="560" alt="Discord profile showing Watching: American Horror Stories, S1 - E1 · Rubber(wo)Man (1), with the episode still and elapsed time">
+<img src="docs/discord-card.png" width="400" alt="Discord card reading Watching Severance: S1 - E1 · Good News About Hell, with a show poster, elapsed time, and View on TMDB and View on IMDb buttons">
 
-<sub>`American Horror Stories - S01E01 - Rubber (Wo)Man Part 1.mkv` → the right show, episode title and still, with no setup per file.</sub>
+<sub>`Severance.S01E01.Good.News.About.Hell.1080p.mkv` → the right show and episode title, the artwork you picked, and links to TMDB and IMDb, with no setup per file.</sub>
 
 </div>
 
@@ -178,7 +178,7 @@ Try it on your own files with `marquee --parse <file>` (offline) or `marquee --l
 
 ## Choosing artwork
 
-<img src="docs/artwork-picker.jpg" alt="Artwork picker: tabs for episode stills, season posters, show posters and backdrops, a grid of posters, and a live preview of the Discord card">
+<img src="docs/artwork-picker.jpg" alt="Choose Artwork for Severance: tabs for episode stills, season posters, show posters and backdrops, a grid of show posters with one selected, and a live preview of the Discord card">
 
 By default an episode shows its **episode still**, falling back to the season poster and then the show poster. Movies show their poster. To change it, choose **Choose Artwork…** while something is playing:
 
@@ -240,7 +240,9 @@ A file that isn't a Marquee export, is damaged, or comes from an older or newer 
 
 ## Updates
 
-Marquee checks GitHub for a new release once a day (turn it off in **Settings… → General**). When one is available, **Install Update…** in the menu downloads it, replaces the app and restarts it.
+Marquee checks GitHub for a new release once a day (turn it off in **Settings… → General**). When one is available, **Install Update…** in the menu downloads it, replaces the app and restarts it. **Settings… → About** shows what's new in it.
+
+Only one copy of Marquee runs at a time. Opening it again (from Finder, Spotlight, the Start menu or the Dock) brings up Settings in the copy that's already running.
 
 ## Configuration
 
@@ -321,6 +323,18 @@ Run `marquee --diagnose`. The usual causes are: Discord isn't running, `discord_
 <summary><b>The wrong title was matched</b></summary>
 
 Choose **Fix Match…** and pick the right title. For whole libraries, add the year to file names (`Title (Year).mkv`), keep shows in `Show/Season N/` folders, or add `{tmdb-…}` tags or `.nfo` files. `marquee --lookup <file>` with `RUST_LOG=debug` shows why each candidate scored the way it did.
+</details>
+
+<details>
+<summary><b>I can't find the menu bar icon (macOS)</b></summary>
+
+When the menu bar runs out of room, for example on a MacBook with a notch while an app with many menus is in front, macOS hides the icons that don't fit. Open Marquee again from Finder or Spotlight to bring up Settings, or switch to an app with fewer menus. Marquee places its icon at the right end of the menu bar so it is among the last to be hidden; you can ⌘-drag it anywhere.
+</details>
+
+<details>
+<summary><b>An update fails with "Read-only file system" (macOS)</b></summary>
+
+macOS runs apps opened straight from Downloads from a temporary read-only copy, so Marquee 0.4.3 and earlier couldn't replace themselves there. Move Marquee.app to your Applications folder, open it from there, and update again. From 0.4.4 on, Marquee updates the app wherever it is.
 </details>
 
 <details>
