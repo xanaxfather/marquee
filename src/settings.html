@@ -464,8 +464,26 @@ h2 .h2note { margin-left: var(--space-xs); color: var(--color-muted); font-weigh
 .version { display: flex; flex-wrap: wrap; gap: var(--space-sm); color: var(--color-muted); }
 .notes {
   max-height: 180px; overflow: auto; padding: var(--space-3xs) 0 var(--space-3xs) var(--space-sm); border-left: 2px solid var(--color-accent);
-  color: var(--color-ink-2); font-size: var(--text-sm); white-space: pre-wrap; user-select: text; -webkit-user-select: text;
+  color: var(--color-ink-2); font-size: var(--text-sm); line-height: 1.5; overflow-wrap: anywhere; user-select: text; -webkit-user-select: text;
 }
+.notes > :first-child { margin-top: 0; }
+.notes > :last-child { margin-bottom: 0; }
+.notes p, .notes ul, .notes ol, .notes pre, .notes blockquote { margin: 0 0 var(--space-xs); }
+.notes ul, .notes ol { padding-left: 1.25em; }
+.notes li + li, .notes li > ul, .notes li > ol { margin-top: 2px; }
+.notes li > ul, .notes li > ol { margin-bottom: 0; }
+.notes li::marker { color: var(--color-muted); }
+.notes .md-task { list-style: none; margin-left: -1.1em; }
+.notes .md-h { margin: var(--space-sm) 0 var(--space-3xs); color: var(--color-ink); font-weight: 600; }
+.notes .md-h1, .notes .md-h2 { font-size: var(--text-md); }
+.notes .md-h4, .notes .md-h5, .notes .md-h6 { color: var(--color-muted); }
+.notes strong { color: var(--color-ink); font-weight: 600; }
+.notes a { color: var(--color-accent-text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.notes code { font-family: var(--font-mono); font-size: 0.92em; padding: 1px 4px; border-radius: 4px; background: var(--color-paper-3); }
+.notes pre { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-control); background: var(--color-paper-3); overflow-x: auto; }
+.notes pre code { padding: 0; background: none; white-space: pre; }
+.notes blockquote { padding-left: var(--space-sm); border-left: 2px solid var(--color-rule-strong); color: var(--color-muted); }
+.notes hr { border: 0; border-top: 1px solid var(--color-rule); margin: var(--space-sm) 0; }
 
 /* ---------- welcome ---------- */
 .welcome {
@@ -1671,17 +1689,108 @@ $("reconnect").onclick = () => post({ type: "reconnect" });
 $("rerunWelcome").onclick = () => openWelcome();
 $("checkUpdate").onclick = () => { $("updSub").textContent = "Checking…"; post({ type: "check_update" }); };
 $("installUpdate").onclick = () => { $("installUpdate").disabled = true; $("installUpdate").textContent = "Downloading…"; post({ type: "install_update" }); };
-// Release notes come as Markdown; show them as plain text without the markup.
-function plainNotes(md) {
-  return String(md || "")
+// Release notes come as GitHub Markdown. Render the common subset (headings,
+// lists, quotes, code, emphasis, links) by building DOM nodes, never HTML
+// strings, so nothing in the notes can inject markup. Links open in the browser.
+const REPO = "https://github.com/xanaxfather/marquee";
+function mdLink(text, url) {
+  if (!/^https:\/\//.test(url)) return document.createTextNode(text);
+  const a = document.createElement("a");
+  a.textContent = text; a.href = url; a.title = url;
+  a.onclick = e => { e.preventDefault(); post({ type: "open", url }); };
+  return a;
+}
+function mdInline(text, parent) {
+  const re = /(`+)([\s\S]*?[^`])\1(?!`)|(!?)\[([^\]]*)\]\(<?([^)\s>]+)>?(?:\s+"[^"]*")?\)|\*\*([\s\S]+?)\*\*|__([\s\S]+?)__|~~([\s\S]+?)~~|\*(?!\s)([^*]+?)\*|(^|[^\w])_(?!\s)([^_]+?)_(?!\w)|(https:\/\/[^\s<>()]*[^\s<>().,;:!?'"])|(^|[^\w&/])#(\d+)\b|(^|[^\w])@([A-Za-z\d](?:[A-Za-z\d-]{0,38}))\b/g;
+  let last = 0, m;
+  const el = (tag, inner) => { const n = document.createElement(tag); mdInline(inner, n); parent.append(n); };
+  while ((m = re.exec(text))) {
+    const lead = m[10] ?? m[13] ?? m[15] ?? "";
+    parent.append(text.slice(last, m.index) + lead);
+    if (m[1]) { const c = document.createElement("code"); c.textContent = m[2].trim() || m[2]; parent.append(c); }
+    else if (m[5] !== undefined) parent.append(mdLink(m[4] || m[5], m[5]));
+    else if (m[6] !== undefined) el("strong", m[6]);
+    else if (m[7] !== undefined) el("strong", m[7]);
+    else if (m[8] !== undefined) el("del", m[8]);
+    else if (m[9] !== undefined) el("em", m[9]);
+    else if (m[11] !== undefined) el("em", m[11]);
+    else if (m[12]) parent.append(mdLink(m[12], m[12]));
+    else if (m[14]) parent.append(mdLink("#" + m[14], `${REPO}/issues/${m[14]}`));
+    else if (m[16]) parent.append(mdLink("@" + m[16], `https://github.com/${m[16]}`));
+    last = re.lastIndex;
+  }
+  parent.append(text.slice(last));
+}
+function renderNotes(md, root) {
+  root.replaceChildren();
+  const text = String(md || "")
     .replace(/\r/g, "")
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/^\s*[-*+]\s+/gm, "• ")
-    .replace(/\*\*(.+?)\*\*|__(.+?)__/g, "$1$2")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<br\s*\/?>|<\/summary>/gi, "\n")
+    .replace(/<\/?(?:details|summary|img|p|div|span|sub|sup|kbd|b|i|u|strong|em|a|picture|source|video|h[1-6])\b[^>]*>/gi, "");
+  mdBlocks(text.split("\n"), root);
+}
+function mdBlocks(lines, root) {
+  let para = null, lists = [];
+  const close = () => { para = null; lists = []; };
+  const add = n => { root.append(n); return n; };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let m;
+    if ((m = line.match(/^\s*(```+|~~~+)/))) {
+      close();
+      const fence = m[1], pre = add(document.createElement("pre")), code = document.createElement("code");
+      const body = [];
+      while (++i < lines.length && !lines[i].trim().startsWith(fence)) body.push(lines[i]);
+      code.textContent = body.join("\n"); pre.append(code);
+      continue;
+    }
+    if (!line.trim()) { close(); continue; }
+    if (/^\s{0,3}>/.test(line)) {
+      close();
+      const inner = [];
+      for (; i < lines.length && /^\s{0,3}>/.test(lines[i]); i++) inner.push(lines[i].replace(/^\s{0,3}>\s?/, ""));
+      i--;
+      mdBlocks(inner, add(document.createElement("blockquote")));
+      continue;
+    }
+    if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(line)) { close(); add(document.createElement("hr")); continue; }
+    if ((m = line.match(/^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/))) {
+      close();
+      const h = add(document.createElement("div"));
+      h.className = "md-h md-h" + m[1].length;
+      mdInline(m[2], h);
+      continue;
+    }
+    if ((m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) {
+      para = null;
+      const indent = m[1].replace(/\t/g, "    ").length;
+      const tag = /\d/.test(m[2]) ? "ol" : "ul";
+      while (lists.length > 1 && indent < lists[lists.length - 1].indent) lists.pop();
+      const top = lists[lists.length - 1];
+      const open = host => { const el = host.appendChild(document.createElement(tag)); lists.push({ el, indent }); return el; };
+      let cur;
+      if (!top) cur = open(root);
+      else if (indent > top.indent + 1) cur = open(top.el.lastElementChild || top.el);
+      else if (top.el.tagName.toLowerCase() !== tag) { lists.pop(); cur = open(top.el.parentNode); }
+      else cur = top.el;
+      let text = m[3], box = null;
+      const task = text.match(/^\[([ xX])\]\s+(.*)$/);
+      if (task) { box = task[1] !== " "; text = task[2]; }
+      const li = cur.appendChild(document.createElement("li"));
+      if (box !== null) { li.className = "md-task"; li.append(box ? "☑ " : "☐ "); }
+      mdInline(text, li);
+      continue;
+    }
+    if (lists.length && /^\s+\S/.test(line)) {
+      const li = lists[lists.length - 1].el.lastElementChild;
+      if (li) { li.append(document.createElement("br")); mdInline(line.trim(), li); continue; }
+    }
+    lists = [];
+    if (para) para.append(document.createElement("br"));
+    else para = add(document.createElement("p"));
+    mdInline(line.trim(), para);
+  }
 }
 window.__update = u => {
   $("updDot").style.display = u && u.version ? "" : "none";
@@ -1691,7 +1800,7 @@ window.__update = u => {
     $("updTitle").textContent = `Marquee ${u.version} is available`;
     $("updSub").textContent = u.asset ? "Installs in a few seconds, then Marquee restarts." : "Opens the download page.";
     $("installUpdate").textContent = u.asset ? "Install and Restart" : "Download";
-    $("updNotes").textContent = plainNotes(u.notes);
+    renderNotes(u.notes, $("updNotes"));
   } else if (u && u.error) {
     $("updTitle").textContent = "Couldn’t check for updates";
     $("updSub").textContent = u.error;

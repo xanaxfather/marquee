@@ -13,6 +13,7 @@ mod discord;
 mod embedded;
 mod history;
 mod icons;
+mod instance;
 mod ipc;
 mod logging;
 mod matches;
@@ -68,6 +69,18 @@ fn main() {
         return;
     }
 
+    // Only the long-running modes are single-instance; CLI tools can run alongside.
+    let instance = match first {
+        None | Some("--headless") => match instance::acquire() {
+            Some(p) => Some(p),
+            None => {
+                eprintln!("Marquee is already running.");
+                return;
+            }
+        },
+        _ => None,
+    };
+
     update::cleanup();
     let migrated = platform::migrate_legacy();
     let (mut cfg, config_error) = Config::load_or_default();
@@ -105,8 +118,8 @@ fn main() {
                 }
             }
         }
-        Some("--headless") => run(cfg, config_error, false),
-        None => run(cfg, config_error, true),
+        Some("--headless") => run(cfg, config_error, false, instance),
+        None => run(cfg, config_error, true, instance),
         Some(other) => {
             eprintln!("unknown argument: {other}\n\n{HELP}");
             std::process::exit(2);
@@ -114,7 +127,7 @@ fn main() {
     }
 }
 
-fn run(cfg: Config, config_error: Option<String>, with_tray: bool) {
+fn run(cfg: Config, config_error: Option<String>, with_tray: bool, instance: Option<instance::Primary>) {
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
         pid = std::process::id(),
@@ -124,6 +137,12 @@ fn run(cfg: Config, config_error: Option<String>, with_tray: bool) {
         "starting Marquee"
     );
     let (tx, rx) = std::sync::mpsc::channel::<core::Msg>();
+    if let Some(instance) = instance {
+        let tx = tx.clone();
+        instance.on_activate(move || {
+            let _ = tx.send(core::Msg::Command(core::Command::OpenSettings { section: None }));
+        });
+    }
     players::spawn_all(&cfg, tx.clone());
 
     if with_tray {

@@ -120,6 +120,40 @@ fn tray_icon() -> Icon {
     Icon::from_rgba(rgba, size, size).expect("valid tray icon")
 }
 
+/// The menu bar hides icons that don't fit (behind the notch, or when the
+/// front app has a long menu), leftmost first, and a new icon starts out
+/// leftmost, so ours was the first to go. Give it a stable autosave name and,
+/// the first time only, a preferred spot at the right end beside the system
+/// icons. A later ⌘-drag by the user is saved under the same key and wins.
+#[cfg(target_os = "macos")]
+const STATUS_ITEM_NAME: &str = "Marquee";
+
+#[cfg(target_os = "macos")]
+fn prefer_right_edge() {
+    use core_foundation::base::{CFRelease, TCFType};
+    use core_foundation::number::CFNumber;
+    use core_foundation::string::CFString;
+    use core_foundation_sys::preferences::{
+        CFPreferencesAppSynchronize, CFPreferencesCopyAppValue, CFPreferencesSetAppValue,
+        kCFPreferencesCurrentApplication,
+    };
+    let key = CFString::new(&format!("NSStatusItem Preferred Position {STATUS_ITEM_NAME}"));
+    // Distance from the right edge of the screen; AppKit keeps system items
+    // (Control Center, clock) to our right regardless.
+    let value = CFNumber::from(1.0f64);
+    // SAFETY: CF calls with valid objects; the copied value is released.
+    unsafe {
+        let app = kCFPreferencesCurrentApplication;
+        let existing = CFPreferencesCopyAppValue(key.as_concrete_TypeRef(), app);
+        if !existing.is_null() {
+            CFRelease(existing);
+            return;
+        }
+        CFPreferencesSetAppValue(key.as_concrete_TypeRef(), value.as_CFTypeRef(), app);
+        CFPreferencesAppSynchronize(app);
+    }
+}
+
 /// macOS: an invisible app menu so windows get ⌘C/⌘V/⌘A/⌘Z and ⌘W.
 #[cfg(target_os = "macos")]
 fn install_app_menu() {
@@ -746,7 +780,10 @@ pub fn run(core_tx: Sender<Msg>, start_core: impl FnOnce(Box<dyn Fn(UiEvent) + S
                 }
                 let builder = TrayIconBuilder::new().with_menu(Box::new(menu)).with_tooltip(style::app_name());
                 #[cfg(target_os = "macos")]
-                let builder = builder.with_icon_templated(tray_icon());
+                let builder = {
+                    prefer_right_edge();
+                    builder.with_icon_templated(tray_icon()).with_autosave_name(STATUS_ITEM_NAME)
+                };
                 #[cfg(not(target_os = "macos"))]
                 let builder = builder.with_icon(tray_icon());
                 match builder.build() {
@@ -804,6 +841,9 @@ pub fn run(core_tx: Sender<Msg>, start_core: impl FnOnce(Box<dyn Fn(UiEvent) + S
             Event::WindowEvent { window_id, event: WindowEvent::CloseRequested, .. } => {
                 windows.close_by_id(window_id);
             }
+            // Marquee opened again from Finder, Spotlight or the Dock while
+            // running: show Settings, in case the menu bar icon is hidden.
+            Event::Reopen { .. } => send(Command::OpenSettings { section: None }),
             Event::UserEvent(UserEvent::Menu(e)) => {
                 let id = e.id();
                 if id == items.quit.id() {

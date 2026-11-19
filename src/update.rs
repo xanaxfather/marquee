@@ -71,7 +71,7 @@ pub fn check() -> Result<Option<Release>> {
     });
     Ok(Some(Release {
         version: tag.trim_start_matches('v').to_string(),
-        notes: v["body"].as_str().unwrap_or("").chars().take(2000).collect(),
+        notes: v["body"].as_str().unwrap_or("").chars().take(8000).collect(),
         page: v["html_url"].as_str().filter(|u| u.starts_with("https://github.com/")).unwrap_or(RELEASES_PAGE).into(),
         asset,
     }))
@@ -88,14 +88,62 @@ fn download(url: &str, to: &Path) -> Result<()> {
     Ok(())
 }
 
-/// The .app bundle we are running from (macOS).
+/// The .app bundle we are running from (macOS), as it sits on disk.
 #[cfg(target_os = "macos")]
 fn current_bundle() -> Result<PathBuf> {
     let exe = std::env::current_exe()?;
-    exe.ancestors()
+    let bundle = exe
+        .ancestors()
         .find(|p| p.extension().is_some_and(|e| e == "app"))
         .map(Path::to_path_buf)
-        .context("not running from Marquee.app; download the update from the releases page")
+        .context("not running from Marquee.app; download the update from the releases page")?;
+    if !is_translocated(&bundle) {
+        return Ok(bundle);
+    }
+    let original = original_path(&bundle).context(
+        "macOS is running Marquee from a temporary read-only copy. Move Marquee.app to your Applications folder, open it from there, then try again",
+    )?;
+    tracing::info!(running = %bundle.display(), original = %original.display(), "app is translocated; updating the original");
+    Ok(original)
+}
+
+/// Gatekeeper runs a quarantined app that was opened where it was downloaded
+/// from a randomised read-only mount ("App Translocation").
+#[cfg(target_os = "macos")]
+fn is_translocated(p: &Path) -> bool {
+    p.to_string_lossy().contains("/AppTranslocation/")
+}
+
+/// Where a translocated app really lives, via the Security framework call
+/// Apple provides for exactly this (looked up at run time; it is not in the
+/// public headers).
+#[cfg(target_os = "macos")]
+fn original_path(translocated: &Path) -> Option<PathBuf> {
+    use core_foundation::base::TCFType;
+    use core_foundation::url::CFURL;
+    use core_foundation_sys::url::CFURLRef;
+    type Func = unsafe extern "C" fn(CFURLRef, *mut *mut std::ffi::c_void) -> CFURLRef;
+
+    let url = CFURL::from_path(translocated, true)?;
+    // SAFETY: dlopen/dlsym with NUL-terminated names; the symbol has the
+    // signature `CFURLRef (CFURLRef, CFErrorRef *)` and returns a +1 reference.
+    unsafe {
+        let lib = libc::dlopen(c"/System/Library/Frameworks/Security.framework/Security".as_ptr(), libc::RTLD_LAZY);
+        if lib.is_null() {
+            return None;
+        }
+        let sym = libc::dlsym(lib, c"SecTranslocateCreateOriginalPathForURL".as_ptr());
+        if sym.is_null() {
+            return None;
+        }
+        let f: Func = std::mem::transmute(sym);
+        let out = f(url.as_concrete_TypeRef(), std::ptr::null_mut());
+        if out.is_null() {
+            return None;
+        }
+        let path = CFURL::wrap_under_create_rule(out).to_path()?;
+        (!is_translocated(&path) && path.extension().is_some_and(|e| e == "app")).then_some(path)
+    }
 }
 
 /// Download, verify and swap in the new version, then start it once this
@@ -114,7 +162,12 @@ fn install_platform(url: &str) -> Result<()> {
     // Work next to the app so the final moves are renames on one volume.
     let work = parent.join(".marquee-update");
     let _ = std::fs::remove_dir_all(&work);
-    std::fs::create_dir_all(&work).with_context(|| format!("no write access to {}", parent.display()))?;
+    std::fs::create_dir_all(&work).with_context(|| {
+        format!(
+            "Marquee can't write to {}. Move Marquee.app to your Applications folder and try again",
+            parent.display()
+        )
+    })?;
     let zip = work.join("update.zip");
     download(url, &zip)?;
     let status = Command::new("/usr/bin/ditto").args(["-x", "-k"]).arg(&zip).arg(&work).status()?;
@@ -125,6 +178,8 @@ fn install_platform(url: &str) -> Result<()> {
     if !new_app.join("Contents/MacOS/marquee").is_file() {
         bail!("the update does not contain Marquee.app");
     }
+    // A quarantined copy would be translocated again on its next launch.
+    let _ = Command::new("/usr/bin/xattr").args(["-dr", "com.apple.quarantine"]).arg(&new_app).status();
     let old = work.join("Marquee-old.app");
     std::fs::rename(&bundle, &old).context("moving the current app aside")?;
     if let Err(e) = std::fs::rename(&new_app, &bundle) {
